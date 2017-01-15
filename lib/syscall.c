@@ -61,3 +61,99 @@ sys_getenvid(void)
 	return syscall(SYS_getenvid, 0, 0, 0, 0, 0, 0);
 }
 
+void
+sys_yield(void)
+{
+	syscall(SYS_yield, 0, 0, 0, 0, 0, 0);
+}
+
+int
+sys_page_alloc(envid_t envid, void *va, int perm)
+{
+	return syscall(SYS_page_alloc, 1, envid, (uint64_t) va, perm, 0, 0);
+}
+
+int
+sys_page_map(envid_t srcenv, void *srcva, envid_t dstenv, void *dstva, int perm)
+{
+	return syscall(SYS_page_map, 1, srcenv, (uint64_t) srcva, dstenv, (uint64_t) dstva, perm);
+}
+
+int
+sys_page_unmap(envid_t envid, void *va)
+{
+	return syscall(SYS_page_unmap, 1, envid, (uint64_t) va, 0, 0, 0);
+}
+
+// sys_exofork is inlined in lib.h
+
+int
+sys_env_set_status(envid_t envid, int status)
+{
+	return syscall(SYS_env_set_status, 1, envid, status, 0, 0, 0);
+}
+
+int
+sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
+{
+	return syscall(SYS_env_set_trapframe, 1, envid, (uint64_t) tf, 0, 0, 0);
+}
+
+int
+sys_env_set_pgfault_upcall(envid_t envid, void *upcall)
+{
+	return syscall(SYS_env_set_pgfault_upcall, 1, envid, (uint64_t) upcall, 0, 0, 0);
+}
+
+int
+sys_ipc_try_send(envid_t envid, uint64_t value, void *srcva, int perm)
+{
+	return syscall(SYS_ipc_try_send, 0, envid, value, (uint64_t) srcva, perm, 0);
+}
+
+int
+sys_ipc_recv(void *dstva)
+{
+	return syscall(SYS_ipc_recv, 1, (uint64_t)dstva, 0, 0, 0, 0);
+}
+
+unsigned int
+sys_time_msec(void)
+{
+	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
+}
+
+
+int
+sys_ept_map(envid_t srcenvid, void *srcva, envid_t guest, void* guest_pa, int perm) 
+{
+	return syscall(SYS_ept_map, 0, srcenvid, 
+		       (uint64_t)srcva, guest, (uint64_t)guest_pa, perm);
+}
+
+envid_t
+sys_env_mkguest(uint64_t gphysz, uint64_t gRIP) {
+	return (envid_t) syscall(SYS_env_mkguest, 0, gphysz, gRIP, 0, 0, 0);
+}
+#ifndef VMM_GUEST
+void
+sys_vmx_list_vms() {
+	syscall(SYS_vmx_list_vms, 0, 0, 
+		       0, 0, 0, 0);
+}
+
+int
+sys_vmx_sel_resume(int i) {
+	return syscall(SYS_vmx_sel_resume, 0, i, 0, 0, 0, 0);
+}
+int
+sys_vmx_get_vmdisk_number() {
+	return syscall(SYS_vmx_get_vmdisk_number, 0, 0, 0, 0, 0, 0);
+}
+
+void
+sys_vmx_incr_vmdisk_number() {
+	syscall(SYS_vmx_incr_vmdisk_number, 0, 0, 0, 0, 0, 0);
+}
+#endif
+

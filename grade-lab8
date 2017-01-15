@@ -1,0 +1,22 @@
+#!/usr/bin/env python
+
+from gradelib import *
+
+r = Runner(save("jos.out"),
+           stop_breakpoint("readline"))
+
+def matchtest(parent, name, *args, **kw):
+    def do_test():
+        r.match(*args, **kw)
+    test(5, name, parent=parent)(do_test)
+
+@test(0, "VMM Tests")
+def test_vm():
+    r.user_test("vmm")
+matchtest(test_vm, "sys_ept_map seems to work correctly")
+
+matchtest(test_vm, "VMX extension hidden from guest")
+
+matchtest(test_vm, "turtles all the way")
+
+run_tests()
