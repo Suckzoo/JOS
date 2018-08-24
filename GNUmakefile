@@ -208,7 +208,7 @@ grade:
 handin: realclean
 	@if [ `git status --porcelain| wc -l` != 0 ] ; then echo "\n\n\n\n\t\tWARNING: YOU HAVE UNCOMMITTED CHANGES\n\n    Consider committing any pending changes and rerunning make handin.\n\n\n\n"; fi
 	git tag -f -a lab$(LAB)-handin -m "Lab$(LAB) Handin"
-	git push --tags handin
+	git push --tags 
 
 handin-check:
 	@if test "$$(git symbolic-ref HEAD)" != refs/heads/lab$(LAB); then \
@@ -231,10 +231,6 @@ handin-check:
 tarball: handin-check
 	git archive --format=tar HEAD | gzip > lab$(LAB)-handin.tar.gz
 
-handin-prep:
-	@./handin-prep
-
-
 # This magic automatically generates makefile dependencies
 # for header files included from C source files we compile,
 # and keeps those dependencies up-to-date every time we recompile.
@@ -249,4 +245,4 @@ always:
 	@:
 
 .PHONY: all always \
-	handin tarball clean realclean distclean grade handin-prep handin-check
+	handin tarball clean realclean distclean grade handin-check
