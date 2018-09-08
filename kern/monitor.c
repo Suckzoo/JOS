@@ -86,7 +86,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		cprintf("  rbp %016x rip %016x\n", rbp, rip);
 		int status = debuginfo_rip(rip, &info);
 		if (status == 0) {
-			cprintf("  %s:%016x: %s+%016x  ", info.rip_file,
+			cprintf("  %s:%d: %s+%016x  ", info.rip_file,
 											  info.rip_line,
 											  info.rip_fn_name,
 											  info.rip_fn_addr);
