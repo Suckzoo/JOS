@@ -81,16 +81,15 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	read_rip(rip);
 	long long rbp = read_rbp();
 	cprintf("Stack backtrace:\n");
-	struct Ripdebuginfo *info;
-	info = (struct Ripdebuginfo*)malloc(sizeof(struct Ripdebuginfo));
+	struct Ripdebuginfo info;
 	while(rbp) {
 		cprintf("  rbp %016x rip %016x\n", rbp, rip);
-		int status = debuginfo_rip(rip, info);
+		int status = debuginfo_rip(rip, &info);
 		if (status == 0) {
-			cprintf("  %s:%016x: %s+%016x  ", info->rip_file,
-													  info->rip_line,
-													  info->rip_fn_name,
-													  info->rip_fn_addr);
+			cprintf("  %s:%016x: %s+%016x  ", info.rip_file,
+											  info.rip_line,
+											  info.rip_fn_name,
+											  info.rip_fn_addr);
 			backtrace_helper(rbp); //some register must go here
 			cprintf("\n");
 		} else {
