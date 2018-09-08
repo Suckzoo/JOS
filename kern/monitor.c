@@ -69,7 +69,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	struct Ripdebuginfo info;
 	memset(&info, 0, sizeof(info));
 	int init_trace = 0;
-	uint64_t args[64] = {argc, argv, tf};
+	uint64_t args[64] = {(uint64_t)argc, (uint64_t)argv, (uint64_t)tf};
 	debuginfo_rip(rip, &info);
 	while(rbp) {
 		cprintf("  rbp %016x rip %016x\n", rbp, rip);

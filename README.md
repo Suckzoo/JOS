@@ -179,4 +179,6 @@ The difference of `rsp` is 0x20. Thus, we can conclude that one recursive step p
 ```
 They are: return address(0x800420009d), function argument(4), last rbp(0x800421afe0), and some abandoned value (0x0421ce00)
 
+Note that exercise 12 does not work :(
+
 
