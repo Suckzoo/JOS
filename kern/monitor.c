@@ -81,7 +81,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		for(int i=0; i<info.rip_fn_narg;i++) {
 			uint64_t raw_arg = args[i];
 			uint64_t flag = (1ll << info.size_fn_arg[i]) - 1;
-			cprintf("%016x ", args[i] & raw_arg);
+			cprintf("%016x ", args[i] & flag);
 		}
 		cprintf("\n");
 		rip = *((long long*)(rbp+8));
