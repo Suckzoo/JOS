@@ -48,8 +48,8 @@ def test_backtrace_lines():
             begin = i + 2
         if begin > 0 and code[i].startswith('}'):
             end = i
-        if any(int(m[1]) < begin or int(m[1]) > end for m in matches):
-            assert_equal("\n".join(m[0] for m in matches),
-                        "Line numbers between 5 and 50")
+    if any(int(m[1]) < begin or int(m[1]) > end for m in matches):
+        assert_equal("\n".join(m[0] for m in matches),
+                    "Line numbers between 5 and 50")
 
 run_tests()
