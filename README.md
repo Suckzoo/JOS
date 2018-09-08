@@ -18,7 +18,12 @@ The original lab material can be found [here](http://cs492virt.kaist.ac.kr/lab1.
 protcseg:
   (the code below is omitted)
 ```
-After the boot loader enables protection mode and executes the long-jump operation, the processor starts executing 32-bit code. The above code is from `boot.S`, line 93-102. From line 93, the boot loader enables protection mode by setting flag `CR0_PE_ON` to CR0 register. The reason we need long-jump operation in line 99 is because after the label `protcseg`, the address of codes are expressed in 32-bit mode. Thus, the boot loader needs to use long-jump operation, rather than the ordinary jump operation. Below log shows that gdb notifies the execution mode has changed into 32-bit mode.
+After the boot loader enables protection mode and executes the long-jump operation, the processor starts executing 32-bit code. The above code is from `boot.S`, line 93-102. 
+
+From line 93, the boot loader enables protection mode by setting flag `CR0_PE_ON` to CR0 register. 
+The reason we need long-jump operation in line 99 is because after the label `protcseg`, the address of codes are expressed in 32-bit mode. 
+
+Thus, the boot loader needs to use long-jump operation, rather than the ordinary jump operation. Below log shows that gdb notifies the execution mode has changed into 32-bit mode.
 ```shell
 (gdb) si
 [f000:d190]    0xfd190:	ljmpl  $0x8,$0xfd198
@@ -52,6 +57,7 @@ The following text is the tailed disassembly of bootmain, which was from `objdum
 The binaries below `7de8` are executed when the bootloader fails to load the OS.
 We can conclude that the last instruction executed by the bootloader is `7de8`, which is `call *0x10018`.
 The instruction calls the main function of OS.
+
 From `readelf -e obj/kern/kernel`, we can see that the entry point of the kernel ELF is `0x100000`. If we `objdump` the kernel and see what's there in `0x100000`, we can see that the following instruction lies there.
 ```
 0000000000100000 <_head64>:
@@ -61,15 +67,16 @@ From `readelf -e obj/kern/kernel`, we can see that the entry point of the kernel
 ```
 Thus, we can conclude that the first instruction kernel executes is `mov $0x107000,%eax`.
 
-
 > How does the boot loader decide how many sectors it must read in order to fetch the entire kernel from disk? Where does it find this information?
 
 The size of disk sector is 512 byte, as defined on line 32 of main.c. 
 When the boot loader loads kernel, it first reads ELF header of kernel. The ELF header takes 8 sectors. 
 After read ELF header of kernel, the boot loader loads each segments of kernel.
+
 I performed `elfread -a` to `obj/kern/kernel`, which is the actual kernel and I could get the following result.
 There were 18 sections on kernel. I noticed this by inspecting `e_phnum` value of ELF header.
 Each section is stored on disk, aligned by 512 byte which is the actual sector size.
+
 Thus, we can conclude that the boot loader reads sum(ceil(sector_size)/SECTSIZE) sectors to fetch entire kernel. 
 As I perform the calculation above, I could conclude that 423 sectors are read to fetch the entire kernel.
 
@@ -96,14 +103,41 @@ The new virtual-to-physical mapping takes effect when the below instructions are
     movl %eax,%cr0
 ```
 By setting CR0 registers with some flags (e.g. PE for enabling protected mode), the new mapping takes effect.
+From this, the linear address is not directly mapped into the physical address.
 
 > Then examine the Global Descriptor Table (GDT) that the code uses to achieve this effect, and make sure you understand what's going on.
 
+```asm
+   0x1000d5 <_head64+213>:	mov    $gdtdesc_64,%eax
+   0x1000da <_head64+218>:	lgdtl  (%eax)
+```
+The GDT description is defined under the address `$gdtdesc_64`. By referencing the address, we can see GDT entries in `gdt_64`.
+```asm
+gdt_64:
+    SEG_NULL
+    .quad  0x00af9a000000ffff            #64 bit CS
+    .quad  0x00cf92000000ffff            #64 bit DS
+```
+Each entry in the table defines the behavior of segments. (e.g. base address, limit address ...)
+
 > What is the first instruction after the new mapping is established that would fail to work properly if the old mapping were still in place? Comment out or otherwise intentionally break the segmentation setup code in kern/entry.S, trace into it, and see if you were right.
 
+```asm
+    movabs   $gdtnull_64,%rax
+    lgdt     (%rax)
+    (omitted)
+    movabs  $relocated,%rax
+    pushq   %rax
+    lretq
+relocated:
+=>	movq	$0x0,%rbp			# nuke frame pointer
+```
+
+I disabled the segmentation setup by defining new GDT `gdtnull_64`, which only contains segment descript `SEG_NULL`.
+By pushing the address of `relocated` label and returning, the kernel tries to execute instructions after `relocated` label. However, the kernel cannot execute the instruction at the label because it is not executable, just as defined in the GDT. 
 
 ### Exercise 9
-##### Determine where the kernel initializes its stack, and exactly where in memory its stack is located. How does the kernel reserve space for its stack? And at which "end" of this reserved area is the stack pointer initialized to point to?
+> Determine where the kernel initializes its stack, and exactly where in memory its stack is located. How does the kernel reserve space for its stack? And at which "end" of this reserved area is the stack pointer initialized to point to?
 
 ### Exercise 10
-##### How many 64-bit words does each recursive nesting level of test_backtrace push on the stack, and what are those words?
+> How many 64-bit words does each recursive nesting level of test_backtrace push on the stack, and what are those words?
