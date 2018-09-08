@@ -26,6 +26,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Backtrace the call stack frame", mon_backtrace },
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -57,6 +58,21 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+void
+backtrace_helper(long long rbp)
+{
+	// returns how many arguments pushed into call stack.
+	// pushed items: arguments, return address
+	long long *p_rbp = (long long*)rbp;
+	int num_args = (int)((*p_rbp - rbp - 8) / 8);
+	long long *ptr;
+	int i = 0;
+	cprintf("args:%d  ", num_args);
+	for(ptr = p_rbp + 8; i < num_args; ptr-=8, i++) {
+		cprintf("%016x", *ptr);
+	}
+}
+
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
@@ -65,8 +81,21 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	read_rip(rip);
 	long long rbp = read_rbp();
 	cprintf("Stack backtrace:\n");
+	struct Ripdebuginfo *info;
+	info = (struct Ripdebuginfo*)malloc(sizeof(struct Ripdebuginfo));
 	while(rbp) {
 		cprintf("  rbp %016x rip %016x\n", rbp, rip);
+		int status = debuginfo_rip(rip, info);
+		if (status == 0) {
+			cprintf("  %s:%016x: %s+%016x  ", info->rip_file,
+													  info->rip_line,
+													  info->rip_fn_name,
+													  info->rip_fn_addr);
+			backtrace_helper(rbp); //some register must go here
+			cprintf("\n");
+		} else {
+			cprintf("Failed to extract symbol information\n");
+		}
 		rip = *((long long*)(rbp+8));
 		rbp = *((long long*)rbp);
 	}
