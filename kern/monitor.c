@@ -69,7 +69,7 @@ backtrace_helper(long long rbp)
 	int i = 0;
 	cprintf("args:%d  ", num_args);
 	for(ptr = p_rbp + 8; i < num_args; ptr-=8, i++) {
-		cprintf("%016x", *ptr);
+		cprintf("%016x ", *ptr);
 	}
 }
 
