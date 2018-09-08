@@ -3,7 +3,8 @@
 The original lab material can be found [here](http://cs492virt.kaist.ac.kr/lab1.html)
 
 ### Exercise 3
-##### At what point does the processor start executing 32-bit code? What exactly causes the switch from 16- to 32-bit mode?
+> At what point does the processor start executing 32-bit code? What exactly causes the switch from 16- to 32-bit mode?
+
 ```asm
   movl    %cr0, %eax
   orl     $CR0_PE_ON, %eax
@@ -34,7 +35,8 @@ The target architecture is assumed to be i386
 1: $pc = (void (*)()) 0xfd198
 ```
 
-##### What is the last instruction of the boot loader executed, and what is the first instruction of the kernel it just loaded?
+> What is the last instruction of the boot loader executed, and what is the first instruction of the kernel it just loaded?
+
 The following text is the tailed disassembly of bootmain, which was from `objdump -d obj/boot/boot.out`.
 ```
     7ddb:	b8 00 70 00 00       	mov    $0x7000,%eax
@@ -60,7 +62,8 @@ From `readelf -e obj/kern/kernel`, we can see that the entry point of the kernel
 Thus, we can conclude that the first instruction kernel executes is `mov $0x107000,%eax`.
 
 
-##### How does the boot loader decide how many sectors it must read in order to fetch the entire kernel from disk? Where does it find this information?
+> How does the boot loader decide how many sectors it must read in order to fetch the entire kernel from disk? Where does it find this information?
+
 The size of disk sector is 512 byte, as defined on line 32 of main.c. 
 When the boot loader loads kernel, it first reads ELF header of kernel. The ELF header takes 8 sectors. 
 After read ELF header of kernel, the boot loader loads each segments of kernel.
@@ -68,13 +71,36 @@ I performed `elfread -a` to `obj/kern/kernel`, which is the actual kernel and I 
 There were 18 sections on kernel. I noticed this by inspecting `e_phnum` value of ELF header.
 Each section is stored on disk, aligned by 512 byte which is the actual sector size.
 Thus, we can conclude that the boot loader reads sum(ceil(sector_size)/SECTSIZE) sectors to fetch entire kernel. 
-//TODO: align 맞춰서 계산하기
+As I perform the calculation above, I could conclude that 423 sectors are read to fetch the entire kernel.
 
 ### Exercise 6
-##### Reset the machine (exit QEMU/GDB and start them again). Examine the 8 words of memory at 0x00100000 at the point the BIOS enters the boot loader, and then again at the point the boot loader enters the kernel. Why are they different? What is there at the second breakpoint? (You do not really need to use QEMU to answer this question. Just think.)
+> Reset the machine (exit QEMU/GDB and start them again). Examine the 8 words of memory at 0x00100000 at the point the BIOS enters the boot loader, and then again at the point the boot loader enters the kernel. Why are they different? What is there at the second breakpoint? (You do not really need to use QEMU to answer this question. Just think.)
+
+Right after the boot loader is started to executed, the kernel is not yet loaded.
+Thus, there are only zero values in 0x100000 and so forth.
+On the other hand, when the boot loader enters the kernel, the boot loader has fully read the ELF of kernel.
+Thus, there are hex values in 0x100000 and its nearby area, which are actually instuctions from `kern/bootstrap.s`.
 
 ### Exercise 7
-##### What is the first instruction after the new mapping is established that would fail to work properly if the old mapping were still in place? Comment out or otherwise intentionally break the segmentation setup code in kern/entry.S, trace into it, and see if you were right.
+> Use QEMU and GDB to trace into the early JOS kernel boot code (in the kern/boostrap.S directory) and find where the new virtual-to-physical mapping takes effect. 
+
+The new virtual-to-physical mapping takes effect when the below instructions are executed.
+```asm
+    # enable paging 
+    movl %cr0,%eax
+    orl $CR0_PE,%eax
+    orl $CR0_PG,%eax
+    orl $CR0_AM,%eax
+    orl $CR0_WP,%eax
+    orl $CR0_MP,%eax
+    movl %eax,%cr0
+```
+By setting CR0 registers with some flags (e.g. PE for enabling protected mode), the new mapping takes effect.
+
+> Then examine the Global Descriptor Table (GDT) that the code uses to achieve this effect, and make sure you understand what's going on.
+
+> What is the first instruction after the new mapping is established that would fail to work properly if the old mapping were still in place? Comment out or otherwise intentionally break the segmentation setup code in kern/entry.S, trace into it, and see if you were right.
+
 
 ### Exercise 9
 ##### Determine where the kernel initializes its stack, and exactly where in memory its stack is located. How does the kernel reserve space for its stack? And at which "end" of this reserved area is the stack pointer initialized to point to?
