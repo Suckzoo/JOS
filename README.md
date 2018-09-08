@@ -134,10 +134,49 @@ relocated:
 ```
 
 I disabled the segmentation setup by defining new GDT `gdtnull_64`, which only contains segment descript `SEG_NULL`.
-By pushing the address of `relocated` label and returning, the kernel tries to execute instructions after `relocated` label. However, the kernel cannot execute the instruction at the label because it is not executable, just as defined in the GDT. 
+By pushing the address of `relocated` label and returning, the kernel tries to execute instructions after `relocated` label. 
+However, the kernel cannot execute the instruction at the label because it is not executable, just as defined in the GDT. 
 
 ### Exercise 9
 > Determine where the kernel initializes its stack, and exactly where in memory its stack is located. How does the kernel reserve space for its stack? And at which "end" of this reserved area is the stack pointer initialized to point to?
+In `kern/entry.S`, we can see the empty stack initialization as described below.
+```asm
+	movq	$0x0,%rbp			# nuke frame pointer
+
+	# Set the stack pointer
+	movabs	$(bootstacktop),%rax
+	movq  %rax,%rsp
+    (omitted assemblies)
+bootstack:
+	.space		KSTKSIZE
+	.globl		bootstacktop   
+bootstacktop:
+```
+Thus, we can see that the address of bootstacktop is the exact location where our stack is.
+By disassembling the kernel binary, I could know that the location is `$0x800421b000`.
+The kernel reserves stack area(for KSTKSIZE = 5 PGs), under the .data section(with some alignments).
+Initially, the top of the stack will point border of the data section.
 
 ### Exercise 10
 > How many 64-bit words does each recursive nesting level of test_backtrace push on the stack, and what are those words?
+```shell
+Breakpoint 5, test_backtrace (x=3) at kern/init.c:21
+21	{
+(gdb) i r
+(omitted registers)
+rdi            0x4	4 # => 0x3  3
+rbp            0x800421afe0	0x800421afe0 # => 0x800421afc0 0x800421afc0
+rsp            0x800421afc8	0x800421afc8 # => 0x800421afa8 0x800421afa8
+```
+The difference of `rsp` is 0x20. Thus, we can conclude that one recursive step pushed 4 qwords. I inspected what has been pushed when taking a recursive step.
+```shell
+(gdb) x/8x $rsp
+0x800421afa8:	0x0420009d	0x00000080	0x0421ce00	0x00000080
+0x800421afb8:	0x0421ce00	0x00000004	0x0421afe0	0x00000080
+(gdb) disas test_backtrace
+   0x000000800420009b <+67>:	callq  *%rax
+=> 0x000000800420009d <+69>:	jmp    0x80042000ba <test_backtrace+98>
+```
+They are: return address(0x800420009d), function argument(4), last rbp(0x800421afe0), and some abandoned value (0x0421ce00)
+
+
