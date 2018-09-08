@@ -85,11 +85,11 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 		}
 		cprintf("\n");
 		rip = *((long long*)(rbp+8));
+		rbp = *((long long*)rbp);
 		debuginfo_rip(rip, &info);
 		for(int i = 0; i < info.rip_fn_narg;i++) {
 			args[i] = *((uint64_t*)(rbp + 8 * (i + 2)));
 		}
-		rbp = *((long long*)rbp);
 	}
 	return 0;
 }
