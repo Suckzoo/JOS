@@ -82,6 +82,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	long long rbp = read_rbp();
 	cprintf("Stack backtrace:\n");
 	struct Ripdebuginfo info;
+	memset(&info, 0, sizeof(info));
 	while(rbp) {
 		cprintf("  rbp %016x rip %016x\n", rbp, rip);
 		int status = debuginfo_rip(rip, &info);
