@@ -58,20 +58,6 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
-void
-arg_tracer(struct Ripdebuginfo *info)
-{
-	int i;
-	uintptr_t rbp = read_rbp();
-	int n_arg = info->rip_fn_narg;
-	for(i=0;i<n_arg;i++) {
-		uintptr_t arg_addr = rbp + (8 * (i + 2));
-		uint64_t arg_flag = (1ll << (info->size_fn_arg[i] * 8)) - 1;
-		uint64_t arg = *((uint64_t*)arg_addr) & arg_flag;
-		cprintf("%016x ",arg);
-	}
-}
-
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
@@ -83,21 +69,26 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	struct Ripdebuginfo info;
 	memset(&info, 0, sizeof(info));
 	int init_trace = 0;
+	uint64_t args[64] = {argc, argv, tf};
+	debuginfo_rip(rip, &info);
 	while(rbp) {
 		cprintf("  rbp %016x rip %016x\n", rbp, rip);
-		int status = debuginfo_rip(rip, &info);
-		if (status == 0) {
-			cprintf("  %s:%d: %s+%016x  ", info.rip_file,
-											  info.rip_line,
-											  info.rip_fn_name,
-											  rip - info.rip_fn_addr);
-			cprintf("args:%d  ", info.rip_fn_narg);
-			arg_tracer(&info);
-			cprintf("\n");
-		} else {
-			cprintf("Failed to extract symbol information\n");
+		cprintf("  %s:%d: %s+%016x  ", info.rip_file,
+											info.rip_line,
+											info.rip_fn_name,
+											rip - info.rip_fn_addr);
+		cprintf("args:%d  ", info.rip_fn_narg);
+		for(int i=0; i<info.rip_fn_narg;i++) {
+			uint64_t raw_arg = args[i];
+			uint64_t flag = (1ll << info.size_fn_arg[i]) - 1;
+			cprintf("%016x ", args[i] & raw_arg);
 		}
+		cprintf("\n");
 		rip = *((long long*)(rbp+8));
+		debuginfo_rip(rip, &info);
+		for(int i = 0; i < info.rip_fn_narg;i++) {
+			args[i] = *((uint64_t*)(rbp + 8 * (i + 2)));
+		}
 		rbp = *((long long*)rbp);
 	}
 	return 0;
