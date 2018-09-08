@@ -80,7 +80,7 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 			uint64_t i;
 			cprintf("args:%d  ", info.rip_fn_narg);
 			for(i = 0; i < info.rip_fn_narg; i++) {
-				uint64_t arg_hex = *((uint64_t*)(p_rbp + 8*(i+1)));
+				uint64_t arg_hex = *((uint64_t*)(p_rbp - 8*(i+1)));
 				cprintf("%016x ",arg_hex);
 			}
 			cprintf("\n");
