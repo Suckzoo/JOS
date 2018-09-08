@@ -58,17 +58,31 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+void
+arg_tracer(struct Ripdebuginfo *info)
+{
+	int i;
+	uintptr_t rbp = read_rbp();
+	int n_arg = info->rip_fn_narg;
+	for(i=0;i<n_arg;i++) {
+		uintptr_t arg_addr = rbp + (8 * (i + 2));
+		uint64_t arg_flag = (1ll << (info->size_fn_arg[i] * 8)) - 1;
+		uint64_t arg = *((uint64_t*)arg_addr) & arg_flag;
+		cprintf("%016x ",arg);
+	}
+}
+
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
-	uint64_t rip;
+	uintptr_t rip;
 	read_rip(rip);
-	uint64_t rbp = read_rbp();
-	uint64_t *p_rbp = (uint64_t*)rbp;
+	uintptr_t rbp = read_rbp();
 	cprintf("Stack backtrace:\n");
 	struct Ripdebuginfo info;
 	memset(&info, 0, sizeof(info));
+	int init_trace = 0;
 	while(rbp) {
 		cprintf("  rbp %016x rip %016x\n", rbp, rip);
 		int status = debuginfo_rip(rip, &info);
@@ -77,12 +91,8 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 											  info.rip_line,
 											  info.rip_fn_name,
 											  rip - info.rip_fn_addr);
-			uint64_t i;
 			cprintf("args:%d  ", info.rip_fn_narg);
-			for(i = 0; i < info.rip_fn_narg; i++) {
-				uint64_t arg_hex = *((uint64_t*)(p_rbp - 8*(i+1)));
-				cprintf("%016x ",arg_hex);
-			}
+			arg_tracer(&info);
 			cprintf("\n");
 		} else {
 			cprintf("Failed to extract symbol information\n");
