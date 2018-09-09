@@ -69,27 +69,27 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	struct Ripdebuginfo info;
 	memset(&info, 0, sizeof(info));
 	int init_trace = 0;
-	uint64_t args[64] = {(uint64_t)argc, (uint64_t)argv, (uint64_t)tf};
-	debuginfo_rip(rip, &info);
 	while(rbp) {
 		cprintf("  rbp %016x rip %016x\n", rbp, rip);
-		cprintf("  %s:%d: %s+%016x  ", info.rip_file,
-											info.rip_line,
-											info.rip_fn_name,
-											rip - info.rip_fn_addr);
-		cprintf("args:%d  ", info.rip_fn_narg);
-		for(int i=0; i<info.rip_fn_narg;i++) {
-			uint64_t raw_arg = args[i];
-			uint64_t flag = (1ll << info.size_fn_arg[i]) - 1;
-			cprintf("%016x ", args[i] & flag);
+		int status = debuginfo_rip(rip, &info);
+		if (status == 0) {
+			cprintf("  %s:%d: %s+%016x  ", info.rip_file,
+											  info.rip_line,
+											  info.rip_fn_name,
+											  rip - info.rip_fn_addr);
+			cprintf("args:%d  ", info.rip_fn_narg);
+			uint64_t offset_sum = 0;
+			for(int i=0; i<info.rip_fn_narg;i++) {
+				offset_sum += info.size_fn_arg[i];
+				uint64_t arg_val = *((uint64_t*)(rbp - offset_sum));
+				cprintf("%016x ",arg_val);
+			}
+			cprintf("\n");
+		} else {
+			cprintf("Failed to extract symbol information\n");
 		}
-		cprintf("\n");
 		rip = *((long long*)(rbp+8));
 		rbp = *((long long*)rbp);
-		debuginfo_rip(rip, &info);
-		for(int i = 0; i < info.rip_fn_narg;i++) {
-			args[i] = *((uint64_t*)(rbp + 8 * (i + 2)));
-		}
 	}
 	return 0;
 }
