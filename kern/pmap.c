@@ -216,8 +216,14 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+	result = nextfree;
+	if (n > 0) {
+		nextfree += (uintptr_t)ROUNDUP(n, PGSIZE);
+		if ((uintptr_t)nextfree > UVPT) {
+			panic("boot_alloc: not enough memory\n");
+		}
+	}
+	return result;
 }
 
 // Set up a four-level page table:
@@ -241,7 +247,7 @@ x64_vm_init(void)
 	//panic("i386_vm_init: This function is not finished\n");
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
-	panic("x64_vm_init: this function is not finished\n");
+	// panic("x64_vm_init: this function is not finished\n");
 	pml4e = boot_alloc(PGSIZE);
 	memset(pml4e, 0, PGSIZE);
 	boot_pml4e = pml4e;
@@ -253,6 +259,7 @@ x64_vm_init(void)
 	// each physical page, there is a corresponding struct PageInfo in this
 	// array.  'npages' is the number of physical pages in memory.
 	// Your code goes here:
+	pages = (struct PageInfo*)boot_alloc(sizeof(struct PageInfo) * npages);
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -292,6 +299,11 @@ x64_vm_init(void)
 	// Permissions: kernel RW, user NONE
 	// Your code goes here: 
 	// Check that the initial page directory has been set up correctly.
+
+	// Temporary test for exercise 1
+	check_page_alloc();
+
+	// Exercise 5 must pass this test
 	check_boot_pml4e(boot_pml4e);
 
 	//////////////////////////////////////////////////////////////////////
@@ -312,7 +324,6 @@ x64_vm_init(void)
 // The 'pages' array has one 'struct PageInfo' entry per physical page.
 // Pages are reference counted, and free pages are kept on a linked list.
 // --------------------------------------------------------------
-
 //
 // Initialize page structure and memory free list.
 // After this is done, NEVER use boot_alloc again.  ONLY use the page
@@ -344,7 +355,21 @@ page_init(void)
 	// NB: Remember to mark the memory used for initial boot page table i.e (va>=BOOT_PAGE_TABLE_START && va < BOOT_PAGE_TABLE_END) as in-use (not free)
 	size_t i;
 	struct PageInfo* last = NULL;
-	for (i = 0; i < npages; i++) {
+	// 1. Page 0 is in used.
+	// 2. Page 1 to npages_basemem-1 is free.
+	for (i = 1; i < npages_basemem; i++) {
+		pages[i].pp_ref = 0;
+		pages[i].pp_link = NULL;
+		if(last)
+			last->pp_link = &pages[i];
+		else
+			page_free_list = &pages[i];
+		last = &pages[i];
+	}
+	// 3. pass the IO hole
+	// 4. After EXTPHYSMEM, through the kernel - until kernel page table :)
+	i = PPN(PADDR(boot_alloc(0)));
+	for (; i < npages; i++) {
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = NULL;
 		if(last)
@@ -371,7 +396,24 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	return 0;
+	// There's no free page!
+	if (!page_free_list) return NULL;
+
+	// pop one page
+	struct PageInfo *pp_info = page_free_list;
+	page_free_list = page_free_list->pp_link;
+	// pp_info->pp_ref++; // DO NOT!!!
+	pp_info->pp_link = NULL;
+
+	// translate page into kva
+	void *kva = page2kva(pp_info);
+
+	// memset if ALLOC_ZERO flag is on
+	if (alloc_flags & ALLOC_ZERO) {
+		memset(kva, 0, PGSIZE);
+	}
+
+	return pp_info;
 }
 
 //
@@ -394,6 +436,12 @@ page_free(struct PageInfo *pp)
 	// Fill this function in
 	// Hint: You may want to panic if pp->pp_ref is nonzero or
 	// pp->pp_link is not NULL.
+	assert(pp->pp_ref == 0);
+	if (pp->pp_link) {
+		panic("cannot be freed.");
+	}
+	pp->pp_link = page_free_list;
+	page_free_list = pp;
 }
 
 //
