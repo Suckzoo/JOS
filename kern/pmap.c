@@ -302,6 +302,8 @@ x64_vm_init(void)
 
 	// Temporary test for exercise 1
 	check_page_alloc();
+	// Temporary test for exercise 4
+	page_check();
 
 	// Exercise 5 must pass this test
 	check_boot_pml4e(boot_pml4e);
@@ -483,7 +485,27 @@ page_decref(struct PageInfo* pp)
 pte_t *
 pml4e_walk(pml4e_t *pml4e, const void *va, int create)
 {
-	return NULL;
+	int pml4e_index = PML4(va);
+	pdpe_t *pdpe_entry;
+	struct PageInfo *pp = NULL;
+	if (!(pml4e[pml4e_index] & PTE_P)) {
+		if (!create) {
+			return NULL;
+		}
+		pp = page_alloc(ALLOC_ZERO);
+		if (!pp) return NULL;
+		pp->pp_ref++;
+		pdpe_entry = (pdpe_t*)page2kva(pp);
+		pml4e[pml4e_index] = (pml4e_t)(PADDR(pdpe_entry) | PTE_P | PTE_U);
+	} else {
+		pdpe_entry = (pdpe_t*)KADDR(pml4e[pml4e_index] ^ PTE_P ^ PTE_U);
+	}
+	pte_t* result = pdpe_walk(pdpe_entry, va, create);
+	if (!result && pp) {
+		pml4e[pml4e_index] = (pml4e_t)0;
+		page_decref(pp);
+	}
+	return result;
 }
 
 
@@ -493,8 +515,27 @@ pml4e_walk(pml4e_t *pml4e, const void *va, int create)
 // Hints are the same as in pml4e_walk
 pte_t *
 pdpe_walk(pdpe_t *pdpe,const void *va,int create){
-
-	return NULL;
+	int pdpe_index = PDPE(va);
+	pde_t *pde_entry;
+	struct PageInfo *pp = NULL;
+	if (!(pdpe[pdpe_index] & PTE_P)) {
+		if (!create) {
+			return NULL;
+		}
+		pp = page_alloc(ALLOC_ZERO);
+		if (!pp) return NULL;
+		pp->pp_ref++;
+		pde_entry = (pde_t*)page2kva(pp);
+		pdpe[pdpe_index] = (pdpe_t)(PADDR(pde_entry) | PTE_P | PTE_U);
+	} else {
+		pde_entry = (pde_t*)KADDR(pdpe[pdpe_index] ^ PTE_P ^ PTE_U);
+	}
+	pte_t *result = pgdir_walk(pde_entry, va, create);
+	if (!result && pp) {
+		pdpe[pdpe_index] = (pdpe_t)0;
+		page_decref(pp);
+	}
+	return result;
 }
 // Given 'pgdir', a pointer to a page directory, pgdir_walk returns
 // a pointer to the page table entry (PTE). 
@@ -504,8 +545,21 @@ pdpe_walk(pdpe_t *pdpe,const void *va,int create){
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
-	// Fill this function in
-	return NULL;
+	int pde_index = PDX(va), pte_index = PTX(va);
+	pte_t *pte_entry;
+	if (!(pgdir[pde_index] & PTE_P)) {
+		if (!create) {
+			return NULL;
+		}
+		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+		if (!pp) return NULL;
+		pp->pp_ref++;
+		pte_entry = (pte_t*)page2kva(pp);
+		pgdir[pde_index] = (pde_t)(PADDR(pte_entry) | PTE_P | PTE_U);
+	} else {
+		pte_entry = (pte_t*)KADDR(pgdir[pde_index] ^ PTE_P ^ PTE_U);
+	}
+	return pte_entry + pte_index;
 }
 
 //
@@ -521,6 +575,14 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 static void
 boot_map_region(pml4e_t *pml4e, uintptr_t la, size_t size, physaddr_t pa, int perm)
 {
+	assert (ROUNDDOWN(la, PGSIZE) == la);
+	assert (ROUNDDOWN(pa, PGSIZE) == pa);
+	assert (ROUNDDOWN(size, PGSIZE) == size);
+	size_t i;
+	for(i = 0; i < size; i += PGSIZE, la += PGSIZE, pa += PGSIZE) { 
+		pte_t *pte = pml4e_walk(pml4e, (void *)la, 1);
+		*pte = pa | perm;
+	}
 	// Fill this function in
 }
 
@@ -553,6 +615,17 @@ int
 page_insert(pml4e_t *pml4e, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	pte_t *entry = pml4e_walk(pml4e, va, 1);
+	if (!entry) {
+		return -E_NO_MEM;
+	}
+	if (*entry & PTE_P) {
+		page_remove(pml4e, va);
+	}
+	physaddr_t physpage = page2pa(pp);
+	physpage |= (perm | PTE_P);
+	*entry = physpage;
+	pp->pp_ref++;
 	return 0;
 }
 
@@ -570,7 +643,13 @@ page_insert(pml4e_t *pml4e, struct PageInfo *pp, void *va, int perm)
 struct PageInfo *
 page_lookup(pml4e_t *pml4e, void *va, pte_t **pte_store)
 {
-	// Fill this function in
+	pte_t *entry = pml4e_walk(pml4e, va, 0);
+	if (entry && (*entry & PTE_P)) {
+		if (pte_store) {
+			*pte_store = entry;
+		}
+		return pa2page(*entry);
+	}
 	return NULL;
 }
 
@@ -593,6 +672,13 @@ void
 page_remove(pml4e_t *pml4e, void *va)
 {
 	// Fill this function in
+	pte_t *pte_store;
+	struct PageInfo *pp = page_lookup(pml4e, va, &pte_store);
+	if (pp) {
+		*pte_store = 0;
+		page_decref(pp);
+		tlb_invalidate(pml4e, va);
+	}
 }
 
 //
