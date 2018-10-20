@@ -68,6 +68,16 @@ trap_init(void)
 	// LAB 3: Your code here.
 	idt_pd.pd_lim = sizeof(idt)-1;
 	idt_pd.pd_base = (uint64_t)idt;
+	
+	extern void (*handlers[])();
+	int i;
+	for(i=0;i<20;i++) {
+		if (i!=9 && i!=15) { // except for reserved traps
+			SETGATE(idt[i], 0, GD_KT, handlers[i], 0);
+		}
+	}
+	SETGATE(idt[48], 0, GD_KT, handlers[20], 0);
+	SETGATE(idt[500], 0, GD_KT, handlers[21], 0);
 	// Per-CPU setup
 	trap_init_percpu();
 }
@@ -149,7 +159,6 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
-
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)

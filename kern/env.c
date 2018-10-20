@@ -289,7 +289,8 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
 	uintptr_t base = ROUNDDOWN((uintptr_t)va, PGSIZE);
-	uintptr_t limit = ROUNDUP((uintptr_t)va + len, PGSIZE);
+	uintptr_t limit = ROUNDUP((uintptr_t)(va + len), PGSIZE);
+	cprintf("region_alloc: [%x, %x)\n",base, limit);
 	uintptr_t addr;
 	for(addr = base; addr < limit; addr += PGSIZE) {
 		struct PageInfo* pp = page_alloc(0);
@@ -297,7 +298,10 @@ region_alloc(struct Env *e, void *va, size_t len)
 			panic("region_alloc: no free page available\n");
 		}
 		cprintf("inserting new page at %x...\n", addr);
-		page_insert(e->env_pml4e, pp, (void *)addr, PTE_W | PTE_U);
+		int err = page_insert(e->env_pml4e, pp, (void *)addr, PTE_W | PTE_U);
+		if (err) {
+			panic("page_insert: %e", err);
+		}
 	}
 }
 
@@ -357,12 +361,9 @@ load_icode(struct Env *e, uint8_t *binary)
 	// LAB 3: Your code here
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-	cprintf("[begin of load_icode]\n");
-	cprintf("allocating a page for stack...\n");
 	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
 
 	// LAB 3: Your code here.
-	e->elf = binary;
 	struct Elf *elf = (struct Elf*)binary;
 	if (elf->e_magic != ELF_MAGIC) {
 		panic("load_icode: invalid ELF file\n");
@@ -370,28 +371,17 @@ load_icode(struct Env *e, uint8_t *binary)
 	int nsection = elf->e_phnum;
 	struct Proghdr *ph = (struct Proghdr*)(binary + elf->e_phoff);
 	int i;
-	cprintf("switching page table...\n");
 	lcr3(PADDR(e->env_pml4e));
 	for(i = 0; i < nsection; i++) {
 		if (ph[i].p_type != ELF_PROG_LOAD) continue;
-		cprintf("Section %d needs to be loaded...\n", i);
-		cprintf("Step 1: region alloc for [p_va, p_va + memsz)\n");
 		region_alloc(e, (void *)ph[i].p_va, ph[i].p_memsz);
-		pte_t *pte = pml4e_walk(e->env_pml4e, (void *)ph[i].p_va, 0);
-		assert(pte != NULL);
-		physaddr_t physaddr = *pte;
-		assert((uintptr_t)physaddr & PTE_P);
-		assert((uintptr_t)physaddr & PTE_W);
-		assert((uintptr_t)physaddr & PTE_U);
-		cprintf("Step 2: copy binary into [p_va, p_va + p_filesz)\n");
-		memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
-		cprintf("Step 3: zeroize [p_va + p_filesz, p_memsz)\n");
-		memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
-		cprintf("Success for section %d\n", i);
 	}
-	cprintf("Restoring page table...\n");
+	for(i = 0; i < nsection; i++) {
+		if (ph[i].p_type != ELF_PROG_LOAD) continue;
+		memmove((void *)ph[i].p_va, binary + ph[i].p_offset, ph[i].p_filesz);
+		memset((void *)(ph[i].p_va + ph[i].p_filesz), 0, ph[i].p_memsz - ph[i].p_filesz);
+	}
 	lcr3(PADDR(boot_pml4e));
-	cprintf("Setting entry point...\n");
 	e->env_tf.tf_rip = elf->e_entry;
 	cprintf("Success!\n");
 }
@@ -517,6 +507,7 @@ env_destroy(struct Env *e)
 void
 env_pop_tf(struct Trapframe *tf)
 {
+	cprintf("gazua!!!!\n");
 	__asm __volatile("movq %0,%%rsp\n"
 			 POPA
 			 "movw (%%rsp),%%es\n"
@@ -569,8 +560,7 @@ env_run(struct Env *e)
 	cprintf("switching page table...\n");
 	lcr3(PADDR(curenv->env_pml4e));
 	cprintf("switching trap frame...\n");
+	cprintf("note that rip is %x.\n",curenv->env_tf.tf_rip);
 	env_pop_tf(&curenv->env_tf);
-	cprintf("success!\n");
-	cprintf("[end of env_run]\n");
 }
 

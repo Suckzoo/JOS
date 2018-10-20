@@ -565,12 +565,20 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		if (!create) {
 			return NULL;
 		}
+		uintptr_t la = (uintptr_t)va;
+		if (la >= 0x800000 && la <= 0x803000) {
+			cprintf("Not found PDE %x - %x.\n", pde_index, pte_index);
+		}
 		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
 		if (!pp) return NULL;
 		pp->pp_ref++;
 		pte_entry = (pte_t*)page2kva(pp);
 		pgdir[pde_index] = (pde_t)(PADDR(pte_entry) | PTE_P | PTE_U | PTE_W);
 	} else {
+		uintptr_t la = (uintptr_t)va;
+		if (la >= 0x800000 && la <= 0x803000) {
+			cprintf("Found PDE %x - %x.\n", pde_index, pte_index);
+		}
 		pte_entry = (pte_t*)KADDR(pgdir[pde_index] ^ PTE_P ^ PTE_U ^ PTE_W);
 	}
 	return pte_entry + pte_index;
@@ -629,6 +637,7 @@ int
 page_insert(pml4e_t *pml4e, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	assert(ROUNDDOWN((uintptr_t)va, PGSIZE) == (uintptr_t)va);
 	pte_t *entry = pml4e_walk(pml4e, va, 1);
 	if (!entry) {
 		return -E_NO_MEM;
