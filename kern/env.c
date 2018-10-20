@@ -120,7 +120,16 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-
+	int i;
+	struct Env* env_pt;
+	env_pt = env_free_list = envs;
+	envs[0].env_id = 0;
+	for(i=1;i<NENV;i++) {
+		envs[i].env_id = 0;
+		envs[i].env_link = NULL;
+		env_pt->env_link = envs + i;
+		env_pt = env_pt->env_link;
+	}
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -186,6 +195,10 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+	p->pp_ref++;
+	e->env_pml4e = (pml4e_t*)page2kva(p);
+	cprintf("pml4e initiated on %x(%x).\n", e->env_pml4e, PADDR(e->env_pml4e));
+	memcpy(e->env_pml4e, boot_pml4e, PGSIZE);
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -275,6 +288,17 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+	uintptr_t base = ROUNDDOWN((uintptr_t)va, PGSIZE);
+	uintptr_t limit = ROUNDUP((uintptr_t)va + len, PGSIZE);
+	uintptr_t addr;
+	for(addr = base; addr < limit; addr += PGSIZE) {
+		struct PageInfo* pp = page_alloc(0);
+		if (!pp) {
+			panic("region_alloc: no free page available\n");
+		}
+		cprintf("inserting new page at %x...\n", addr);
+		page_insert(e->env_pml4e, pp, (void *)addr, PTE_W | PTE_U);
+	}
 }
 
 //
@@ -333,9 +357,43 @@ load_icode(struct Env *e, uint8_t *binary)
 	// LAB 3: Your code here
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
+	cprintf("[begin of load_icode]\n");
+	cprintf("allocating a page for stack...\n");
+	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
 
 	// LAB 3: Your code here.
 	e->elf = binary;
+	struct Elf *elf = (struct Elf*)binary;
+	if (elf->e_magic != ELF_MAGIC) {
+		panic("load_icode: invalid ELF file\n");
+	}
+	int nsection = elf->e_phnum;
+	struct Proghdr *ph = (struct Proghdr*)(binary + elf->e_phoff);
+	int i;
+	cprintf("switching page table...\n");
+	lcr3(PADDR(e->env_pml4e));
+	for(i = 0; i < nsection; i++) {
+		if (ph[i].p_type != ELF_PROG_LOAD) continue;
+		cprintf("Section %d needs to be loaded...\n", i);
+		cprintf("Step 1: region alloc for [p_va, p_va + memsz)\n");
+		region_alloc(e, (void *)ph[i].p_va, ph[i].p_memsz);
+		pte_t *pte = pml4e_walk(e->env_pml4e, (void *)ph[i].p_va, 0);
+		assert(pte != NULL);
+		physaddr_t physaddr = *pte;
+		assert((uintptr_t)physaddr & PTE_P);
+		assert((uintptr_t)physaddr & PTE_W);
+		assert((uintptr_t)physaddr & PTE_U);
+		cprintf("Step 2: copy binary into [p_va, p_va + p_filesz)\n");
+		memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+		cprintf("Step 3: zeroize [p_va + p_filesz, p_memsz)\n");
+		memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
+		cprintf("Success for section %d\n", i);
+	}
+	cprintf("Restoring page table...\n");
+	lcr3(PADDR(boot_pml4e));
+	cprintf("Setting entry point...\n");
+	e->env_tf.tf_rip = elf->e_entry;
+	cprintf("Success!\n");
 }
 
 //
@@ -349,6 +407,19 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	cprintf("[begin of env_create]\n");
+	struct Env *env;
+	cprintf("alloc env...\n");
+	int e = env_alloc(&env, 0);
+	if (e) {
+		panic("env_alloc: %e", e);
+	}
+	cprintf("success!\n");
+	cprintf("loading icode...\n");
+	load_icode(env, binary);
+	cprintf("success!\n");
+	env->env_type = type;
+	cprintf("[end of env_create]\n");
 }
 
 //
@@ -484,7 +555,22 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-
-	panic("env_run not yet implemented");
+	cprintf("[begin of env_run]\n");
+	cprintf("stopping current environment...\n");
+	if (curenv != NULL) {
+		if (curenv->env_status == ENV_RUNNING) {
+			curenv->env_status = ENV_RUNNABLE;
+		}
+	}
+	cprintf("switching environment...\n");
+	curenv = e;
+	curenv->env_status = ENV_RUNNING;
+	curenv->env_runs++;
+	cprintf("switching page table...\n");
+	lcr3(PADDR(curenv->env_pml4e));
+	cprintf("switching trap frame...\n");
+	env_pop_tf(&curenv->env_tf);
+	cprintf("success!\n");
+	cprintf("[end of env_run]\n");
 }
 
