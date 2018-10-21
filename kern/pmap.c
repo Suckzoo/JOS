@@ -512,7 +512,7 @@ pml4e_walk(pml4e_t *pml4e, const void *va, int create)
 		pdpe_entry = (pdpe_t*)page2kva(pp);
 		pml4e[pml4e_index] = (pml4e_t)(PADDR(pdpe_entry) | PTE_P | PTE_U | PTE_W);
 	} else {
-		pdpe_entry = (pdpe_t*)KADDR(pml4e[pml4e_index] ^ PTE_P ^ PTE_U ^ PTE_W);
+		pdpe_entry = (pdpe_t*)KADDR((pml4e[pml4e_index] >> 12) << 12);
 	}
 	pte_t* result = pdpe_walk(pdpe_entry, va, create);
 	if (!result && pp) {
@@ -542,7 +542,7 @@ pdpe_walk(pdpe_t *pdpe,const void *va,int create){
 		pde_entry = (pde_t*)page2kva(pp);
 		pdpe[pdpe_index] = (pdpe_t)(PADDR(pde_entry) | PTE_P | PTE_U | PTE_W);
 	} else {
-		pde_entry = (pde_t*)KADDR(pdpe[pdpe_index] ^ PTE_P ^ PTE_U ^ PTE_W);
+		pde_entry = (pde_t*)KADDR((pdpe[pdpe_index] >> 12) << 12);
 	}
 	pte_t *result = pgdir_walk(pde_entry, va, create);
 	if (!result && pp) {
@@ -573,7 +573,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 		pgdir[pde_index] = (pde_t)(PADDR(pte_entry) | PTE_P | PTE_U | PTE_W);
 	} else {
 		uintptr_t la = (uintptr_t)va;
-		pte_entry = (pte_t*)KADDR(pgdir[pde_index] ^ PTE_P ^ PTE_U ^ PTE_W);
+		pte_entry = (pte_t*)KADDR((pgdir[pde_index] >> 12) << 12);
 	}
 	return pte_entry + pte_index;
 }
@@ -733,7 +733,26 @@ static uintptr_t user_mem_check_addr;
 int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
-	// LAB 3: Your code here.
+	uintptr_t base = ROUNDDOWN((uintptr_t)va, PGSIZE);
+	uintptr_t limit = ROUNDUP((uintptr_t)va + len, PGSIZE);
+	for(; base < limit; base += PGSIZE) {
+		if (base >= ULIM) {
+			user_mem_check_addr = base;
+			return -E_FAULT;
+		} 
+		pte_t *pte = pml4e_walk(env->env_pml4e, (void*)base, 0);
+		if (!pte) {
+			if (base < (uintptr_t)va) base = (uintptr_t)va;
+			user_mem_check_addr = base;
+			return -E_FAULT;
+		}
+		physaddr_t physaddr = *pte;
+		if ((physaddr & perm) != perm) {
+			if (base < (uintptr_t)va) base = (uintptr_t)va;
+			user_mem_check_addr = base;
+			return -E_FAULT;
+		}
+	}
 	return 0;
 
 }

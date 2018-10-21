@@ -104,6 +104,7 @@ trap_init(void)
 	REGISTER_HANDLER(17);
 	REGISTER_HANDLER(18);
 	REGISTER_HANDLER(19);
+	REGISTER_HANDLER_DPL(48, 3);
 	// Per-CPU setup
 	trap_init_percpu();
 }
@@ -193,6 +194,14 @@ trap_dispatch(struct Trapframe *tf)
 		break;
 	case T_BRKPT:
 		monitor(tf);
+		break;
+	case T_SYSCALL:
+		tf->tf_regs.reg_rax = syscall(tf->tf_regs.reg_rax,
+																	tf->tf_regs.reg_rdx,
+																	tf->tf_regs.reg_rcx,
+																	tf->tf_regs.reg_rbx,
+																	tf->tf_regs.reg_rdi,
+																	tf->tf_regs.reg_rsi);
 		break;
 	default:
 		if (tf->tf_cs == GD_KT)

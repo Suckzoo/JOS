@@ -174,7 +174,7 @@ env_setup_vm(struct Env *e)
 	struct PageInfo *p = NULL;
 
 	// Allocate a page for the page directory
-	if (!(p = page_alloc(0)))
+	if (!(p = page_alloc(ALLOC_ZERO)))
 		return -E_NO_MEM;
 
 	// Now, set e->env_pml4e and initialize the page directory.
@@ -197,7 +197,10 @@ env_setup_vm(struct Env *e)
 	// LAB 3: Your code here.
 	p->pp_ref++;
 	e->env_pml4e = (pml4e_t*)page2kva(p);
-	memcpy(e->env_pml4e, boot_pml4e, PGSIZE);
+	e->env_cr3 = page2pa(p);
+	for(i = PML4(UTOP); i < NPMLENTRIES; i++){
+		e->env_pml4e[i] = boot_pml4e[i];
+	}
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
@@ -358,17 +361,20 @@ load_icode(struct Env *e, uint8_t *binary)
 	// LAB 3: Your code here
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
 
 	// LAB 3: Your code here.
 	struct Elf *elf = (struct Elf*)binary;
 	if (elf->e_magic != ELF_MAGIC) {
 		panic("load_icode: invalid ELF file\n");
 	}
+
 	int nsection = elf->e_phnum;
 	struct Proghdr *ph = (struct Proghdr*)(binary + elf->e_phoff);
 	int i;
-	lcr3(PADDR(e->env_pml4e));
+
+	lcr3(e->env_cr3);
+	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
+	e->elf = binary;
 	for(i = 0; i < nsection; i++) {
 		if (ph[i].p_type != ELF_PROG_LOAD) continue;
 		region_alloc(e, (void *)ph[i].p_va, ph[i].p_memsz);
@@ -378,8 +384,8 @@ load_icode(struct Env *e, uint8_t *binary)
 		memmove((void *)ph[i].p_va, binary + ph[i].p_offset, ph[i].p_filesz);
 		memset((void *)(ph[i].p_va + ph[i].p_filesz), 0, ph[i].p_memsz - ph[i].p_filesz);
 	}
-	lcr3(PADDR(boot_pml4e));
 	e->env_tf.tf_rip = elf->e_entry;
+	e->env_tf.tf_rsp = USTACKTOP;
 }
 
 //
@@ -543,9 +549,7 @@ env_run(struct Env *e)
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
-	lcr3(PADDR(curenv->env_pml4e));
-	cprintf("switching trap frame...\n");
-	cprintf("note that rip is %x.\n",curenv->env_tf.tf_rip);
+	lcr3(curenv->env_cr3);
 	env_pop_tf(&curenv->env_tf);
 }
 

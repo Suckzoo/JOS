@@ -55,7 +55,7 @@ i386_init(void)
 #else
 	// Touch all you want.
 
-	ENV_CREATE(user_breakpoint, ENV_TYPE_USER);
+	ENV_CREATE(user_hello, ENV_TYPE_USER);
 #endif // TEST*
 
 	// We only have one user environment for now, so just run it.

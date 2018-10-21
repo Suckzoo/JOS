@@ -69,7 +69,7 @@
 	TRAPHANDLER(TH_17, 17)
 	TRAPHANDLER_NOEC(TH_18, 18)
 	TRAPHANDLER_NOEC(TH_19, 19)
-	TRAPHANDLER(TH_48, 48)
+	TRAPHANDLER_NOEC(TH_48, 48)
 	TRAPHANDLER(TH_500, 500)
 
 /*
@@ -79,14 +79,14 @@
  *       for how to pass a pointer to the trapframe.
  */
 _alltraps:
-	movw %es,%ax
-	push %rax
-	movw %ds,%ax
-	push %rax
+	sub $16,%rsp
+	movw %ds,8(%rsp)
+	movw %es,0(%rsp)
 	PUSHA
 	movq $GD_KD,%rax
-	movw %ax,%es
-	movw %ax,%ds
+	movq %rax,%es
+	movq %rax,%ds
 	movq %rsp,%rdi
 	call trap
+	
 	
