@@ -15,6 +15,10 @@
   extern void HANDLER_NAME(num) (); \
 	SETGATE(idt[num], 0, GD_KT, HANDLER_NAME(num), 0);
 
+#define REGISTER_HANDLER_DPL(num, dpl) \
+  extern void HANDLER_NAME(num) (); \
+	SETGATE(idt[num], 0, GD_KT, HANDLER_NAME(num), dpl);
+
 //for debug
 #define GET_HANDLER_OFFSET(num, offset) \
   extern void HANDLER_NAME(num) (); \
@@ -83,7 +87,7 @@ trap_init(void)
 	REGISTER_HANDLER(0);
 	REGISTER_HANDLER(1);
 	REGISTER_HANDLER(2);
-	REGISTER_HANDLER(3);
+	REGISTER_HANDLER_DPL(3, 3);
 	REGISTER_HANDLER(4);
 	REGISTER_HANDLER(5);
 	REGISTER_HANDLER(6);
@@ -130,7 +134,6 @@ print_trapframe(struct Trapframe *tf)
 	print_regs(&tf->tf_regs);
 	cprintf("  es   0x----%04x\n", tf->tf_es);
 	cprintf("  ds   0x----%04x\n", tf->tf_ds);
-	cprintf("real trap number: %d\n", tf->tf_trapno);
 	cprintf("  trap 0x%08x %s\n", tf->tf_trapno, trapname(tf->tf_trapno));
 	// If this trap was a page fault that just happened
 	// (so %cr2 is meaningful), print the faulting linear address.
@@ -184,11 +187,20 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 3: Your code here.
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
+	switch(tf->tf_trapno) {
+	case T_PGFLT:
+		page_fault_handler(tf);
+		break;
+	case T_BRKPT:
+		monitor(tf);
+		break;
+	default:
+		if (tf->tf_cs == GD_KT)
+			panic("unhandled trap in kernel");
+		else {
+			env_destroy(curenv);
+			return;
+		}
 	}
 }
 
