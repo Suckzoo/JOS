@@ -79,6 +79,10 @@
  *       for how to pass a pointer to the trapframe.
  */
 _alltraps:
+	movw %es,%ax
+	push %rax
+	movw %ds,%ax
+	push %rax
 	PUSHA
 	movq $GD_KD,%rax
 	movw %ax,%es

@@ -130,6 +130,7 @@ print_trapframe(struct Trapframe *tf)
 	print_regs(&tf->tf_regs);
 	cprintf("  es   0x----%04x\n", tf->tf_es);
 	cprintf("  ds   0x----%04x\n", tf->tf_ds);
+	cprintf("real trap number: %d\n", tf->tf_trapno);
 	cprintf("  trap 0x%08x %s\n", tf->tf_trapno, trapname(tf->tf_trapno));
 	// If this trap was a page fault that just happened
 	// (so %cr2 is meaningful), print the faulting linear address.
@@ -197,7 +198,6 @@ trap(struct Trapframe *tf)
 	//struct Trapframe *tf = &tf_;
 	// The environment may have set DF and some versions
 	// of GCC rely on DF being clear
-	cprintf("howdy!!!!");
 	asm volatile("cld" ::: "cc");
 
 	// Check that interrupts are disabled.  If this assertion
