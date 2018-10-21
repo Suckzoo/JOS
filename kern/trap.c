@@ -9,6 +9,17 @@
 #include <kern/env.h>
 #include <kern/syscall.h>
 
+#define HANDLER_NAME(num) TH_##num
+
+#define REGISTER_HANDLER(num) \
+  extern void HANDLER_NAME(num) (); \
+	SETGATE(idt[num], 0, GD_KT, HANDLER_NAME(num), 0);
+
+//for debug
+#define GET_HANDLER_OFFSET(num, offset) \
+  extern void HANDLER_NAME(num) (); \
+	offset = (uintptr_t)(&HANDLER_NAME(num));
+
 extern uintptr_t gdtdesc_64;
 struct Taskstate ts;
 extern struct Segdesc gdt[];
@@ -69,15 +80,26 @@ trap_init(void)
 	idt_pd.pd_lim = sizeof(idt)-1;
 	idt_pd.pd_base = (uint64_t)idt;
 	
-	extern void (*handlers[])();
-	int i;
-	for(i=0;i<20;i++) {
-		if (i!=9 && i!=15) { // except for reserved traps
-			SETGATE(idt[i], 0, GD_KT, handlers[i], 0);
-		}
-	}
-	SETGATE(idt[48], 0, GD_KT, handlers[20], 0);
-	SETGATE(idt[500], 0, GD_KT, handlers[21], 0);
+	REGISTER_HANDLER(0);
+	REGISTER_HANDLER(1);
+	REGISTER_HANDLER(2);
+	REGISTER_HANDLER(3);
+	REGISTER_HANDLER(4);
+	REGISTER_HANDLER(5);
+	REGISTER_HANDLER(6);
+	REGISTER_HANDLER(7);
+	REGISTER_HANDLER(8);
+	REGISTER_HANDLER(9);
+	REGISTER_HANDLER(10);
+	REGISTER_HANDLER(11);
+	REGISTER_HANDLER(12);
+	REGISTER_HANDLER(13);
+	REGISTER_HANDLER(14);
+	REGISTER_HANDLER(15);
+	REGISTER_HANDLER(16);
+	REGISTER_HANDLER(17);
+	REGISTER_HANDLER(18);
+	REGISTER_HANDLER(19);
 	// Per-CPU setup
 	trap_init_percpu();
 }
@@ -175,6 +197,7 @@ trap(struct Trapframe *tf)
 	//struct Trapframe *tf = &tf_;
 	// The environment may have set DF and some versions
 	// of GCC rely on DF being clear
+	cprintf("howdy!!!!");
 	asm volatile("cld" ::: "cc");
 
 	// Check that interrupts are disabled.  If this assertion

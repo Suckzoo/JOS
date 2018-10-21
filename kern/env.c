@@ -197,7 +197,6 @@ env_setup_vm(struct Env *e)
 	// LAB 3: Your code here.
 	p->pp_ref++;
 	e->env_pml4e = (pml4e_t*)page2kva(p);
-	cprintf("pml4e initiated on %x(%x).\n", e->env_pml4e, PADDR(e->env_pml4e));
 	memcpy(e->env_pml4e, boot_pml4e, PGSIZE);
 
 	// UVPT maps the env's own page table read-only.
@@ -290,14 +289,12 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   (Watch out for corner-cases!)
 	uintptr_t base = ROUNDDOWN((uintptr_t)va, PGSIZE);
 	uintptr_t limit = ROUNDUP((uintptr_t)(va + len), PGSIZE);
-	cprintf("region_alloc: [%x, %x)\n",base, limit);
 	uintptr_t addr;
 	for(addr = base; addr < limit; addr += PGSIZE) {
 		struct PageInfo* pp = page_alloc(0);
 		if (!pp) {
 			panic("region_alloc: no free page available\n");
 		}
-		cprintf("inserting new page at %x...\n", addr);
 		int err = page_insert(e->env_pml4e, pp, (void *)addr, PTE_W | PTE_U);
 		if (err) {
 			panic("page_insert: %e", err);
@@ -383,7 +380,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	}
 	lcr3(PADDR(boot_pml4e));
 	e->env_tf.tf_rip = elf->e_entry;
-	cprintf("Success!\n");
 }
 
 //
@@ -397,19 +393,13 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
-	cprintf("[begin of env_create]\n");
 	struct Env *env;
-	cprintf("alloc env...\n");
 	int e = env_alloc(&env, 0);
 	if (e) {
 		panic("env_alloc: %e", e);
 	}
-	cprintf("success!\n");
-	cprintf("loading icode...\n");
 	load_icode(env, binary);
-	cprintf("success!\n");
 	env->env_type = type;
-	cprintf("[end of env_create]\n");
 }
 
 //
@@ -507,7 +497,6 @@ env_destroy(struct Env *e)
 void
 env_pop_tf(struct Trapframe *tf)
 {
-	cprintf("gazua!!!!\n");
 	__asm __volatile("movq %0,%%rsp\n"
 			 POPA
 			 "movw (%%rsp),%%es\n"
@@ -546,18 +535,14 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-	cprintf("[begin of env_run]\n");
-	cprintf("stopping current environment...\n");
 	if (curenv != NULL) {
 		if (curenv->env_status == ENV_RUNNING) {
 			curenv->env_status = ENV_RUNNABLE;
 		}
 	}
-	cprintf("switching environment...\n");
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs++;
-	cprintf("switching page table...\n");
 	lcr3(PADDR(curenv->env_pml4e));
 	cprintf("switching trap frame...\n");
 	cprintf("note that rip is %x.\n",curenv->env_tf.tf_rip);
