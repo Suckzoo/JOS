@@ -1,3 +1,4 @@
+
 // Main public header file for our user-land support library,
 // whose code lives in the lib directory.
 // This library is roughly our OS's version of a standard C library,
@@ -16,13 +17,18 @@
 #include <inc/env.h>
 #include <inc/memlayout.h>
 #include <inc/syscall.h>
+
 #include <inc/trap.h>
+
 #include <inc/fs.h>
 #include <inc/fd.h>
 #include <inc/args.h>
+
 #include <inc/malloc.h>
 #include <inc/ns.h>
+
 #include <inc/vmx.h>
+
 
 #define USED(x)		(void)(x)
 
@@ -38,8 +44,10 @@ extern const volatile struct PageInfo pages[];
 // exit.c
 void	exit(void);
 
+
 // pgfault.c
 void	set_pgfault_handler(void (*handler)(struct UTrapframe *utf));
+
 
 // readline.c
 char*	readline(const char *buf);
@@ -49,10 +57,13 @@ void	sys_cputs(const char *string, size_t len);
 int	sys_cgetc(void);
 envid_t	sys_getenvid(void);
 int	sys_env_destroy(envid_t);
+
 void	sys_yield(void);
 static envid_t sys_exofork(void);
 int	sys_env_set_status(envid_t env, int status);
+
 int	sys_env_set_trapframe(envid_t env, struct Trapframe *tf);
+
 int	sys_env_set_pgfault_upcall(envid_t env, void *upcall);
 int	sys_page_alloc(envid_t env, void *pg, int perm);
 int	sys_page_map(envid_t src_env, void *src_pg,
@@ -60,7 +71,12 @@ int	sys_page_map(envid_t src_env, void *src_pg,
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint64_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
+
 unsigned int sys_time_msec(void);
+
+int	sys_net_transmit(const char *data, unsigned int len);
+int	sys_net_receive(char *buf, unsigned int len);
+
 int sys_ept_map(envid_t srcenvid, void *srcva, envid_t guest, void* guest_pa, int perm);
 envid_t sys_env_mkguest(uint64_t gphysz, uint64_t gRIP);
 #ifndef VMM_GUEST
@@ -69,6 +85,7 @@ int	sys_vmx_sel_resume(int i);
 int	sys_vmx_get_vmdisk_number();
 void	sys_vmx_incr_vmdisk_number();
 #endif
+
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
@@ -88,15 +105,19 @@ void	ipc_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int32_t ipc_recv(envid_t *from_env_store, void *pg, int *perm_store);
 envid_t	ipc_find_env(enum EnvType type);
 
+
 #ifdef VMM_GUEST
 void	ipc_host_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int32_t ipc_host_recv(void *pg);
 #endif
 
+
 // fork.c
 #define	PTE_SHARE	0x400
 envid_t	fork(void);
 envid_t	sfork(void);	// Challenge!
+
+
 
 // fd.c
 int	close(int fd);
@@ -114,11 +135,14 @@ int	open(const char *path, int mode);
 int	ftruncate(int fd, off_t size);
 int	remove(const char *path);
 int	sync(void);
+
 int	copy(char *src, char *dest);
+
 
 
 // pageref.c
 int	pageref(void *addr);
+
 
 // sockets.c
 int     accept(int s, struct sockaddr *addr, socklen_t *addrlen);
@@ -139,9 +163,12 @@ int     nsipc_recv(int s, void *mem, int len, unsigned int flags);
 int     nsipc_send(int s, const void *buf, int size, unsigned int flags);
 int     nsipc_socket(int domain, int type, int protocol);
 
+
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+
+
 
 // console.c
 void	cputchar(int c);
@@ -155,6 +182,7 @@ int	pipeisclosed(int pipefd);
 
 // wait.c
 void	wait(envid_t env);
+
 
 /* File open modes */
 #define	O_RDONLY	0x0000		/* open for reading only */

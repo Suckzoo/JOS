@@ -10,8 +10,10 @@
 #include <kern/dwarf_define.h>
 #include <kern/dwarf_error.h>
 
+
 #include <kern/pmap.h>
 #include <kern/env.h>
+
 
 struct _Dwarf_Fde _fde;
 Dwarf_Fde fde = &_fde;
@@ -105,12 +107,14 @@ static const char *const dwarf_regnames_i386[] =
 #endif
 
 
+
 struct UserStabData {
 	const struct Stab *stabs;
 	const struct Stab *stab_end;
 	const char *stabstr;
 	const char *stabstr_end;
 };
+
 
 int list_func_die(struct Ripdebuginfo *info, Dwarf_Die *die, uint64_t addr)
 {
@@ -296,11 +300,13 @@ debuginfo_rip(uintptr_t addr, struct Ripdebuginfo *info)
 	if (addr >= ULIM) {
 		elf = (void *)0x10000 + KERNBASE;
 	} else {
+
 		if(curenv != lastenv) {
 			find_debug_sections((uintptr_t)curenv->elf);
 			lastenv = curenv;
 		}
 		elf = curenv->elf;
+
 	}
 	_dwarf_init(dbg, elf);
 

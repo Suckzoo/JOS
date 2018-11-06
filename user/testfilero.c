@@ -1,3 +1,4 @@
+
 #include <inc/lib.h>
 
 const char *msg = "This is the NEW message of the day!\n\n";

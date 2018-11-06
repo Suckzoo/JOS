@@ -1,3 +1,4 @@
+
 // test user fault handler being called with no exception stack mapped
 
 #include <inc/lib.h>

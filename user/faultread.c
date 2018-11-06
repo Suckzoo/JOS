@@ -1,3 +1,4 @@
+
 // buggy program - faults with a read from location zero
 
 #include <inc/lib.h>

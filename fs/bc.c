@@ -1,4 +1,5 @@
 
+
 #include "fs.h"
 
 // Return the virtual address of this disk block.
@@ -47,18 +48,31 @@ bc_pgfault(struct UTrapframe *utf)
 	// of the block from the disk into that page.
 	// Hint: first round addr to page boundary.
 	//
-	// LAB 5: your code here:
+
+	addr = ROUNDDOWN(addr, PGSIZE);
+	if ((r = sys_page_alloc(0, addr, PTE_U|PTE_P|PTE_W)) < 0)
+		panic("in bc_pgfault, sys_page_alloc: %e", r);
+
+
+
 
 
 #ifndef VMM_GUEST
 
-	// LAB 5: Your code here
+
+	if ((r = ide_read(blockno * BLKSECTS, addr, BLKSECTS)) < 0)
+		panic("in bc_pgfault, ide_read: %e", r);
+
 
 #else  // VMM GUEST
 
-	/* Your code here */
-	panic("Host read not implemented!\n");
+
+	/* FIXME DP: Should be lab 8 */
+	if ((r = host_read(blockno * BLKSECTS, addr, BLKSECTS)) < 0)
+		panic("in bc_pgfault, host_read: %e", r);
+
 #endif // VMM_GUEST
+
 
 
 	if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
@@ -86,8 +100,22 @@ flush_block(void *addr)
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
 		panic("flush_block of bad va %08x", addr);
 
-	// LAB 5: Your code here.
-	panic("flush_block not implemented");
+
+	if (!va_is_mapped(addr) || !va_is_dirty(addr))
+		return;
+
+	// Write the disk block and clear PTE_D.
+	addr = ROUNDDOWN(addr, BLKSIZE);
+#ifndef VMM_GUEST
+	ide_write(blockno * BLKSECTS, (void*) addr, BLKSECTS);
+#else
+
+	/* FIXME DP: Should be lab 8 */
+	host_write(blockno * BLKSECTS, (void*) addr, BLKSECTS);
+
+#endif
+	sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL);
+
 }
 
 // Test that the block cache works, by smashing the superblock and

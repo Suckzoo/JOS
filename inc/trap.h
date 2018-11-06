@@ -1,3 +1,4 @@
+
 #ifndef JOS_INC_TRAP_H
 #define JOS_INC_TRAP_H
 
@@ -85,6 +86,7 @@ struct Trapframe {
     uint32_t tf_padding8;
 } __attribute__((packed));
 
+
 struct UTrapframe {
 	/* information about the fault */
 	uint64_t utf_fault_va;	/* va for T_PGFLT, 0 otherwise */
@@ -96,6 +98,7 @@ struct UTrapframe {
 	/* the trap-time stack to return to */
 	uintptr_t utf_rsp;
 } __attribute__((packed));
+
 
 #endif /* !__ASSEMBLER__ */
 

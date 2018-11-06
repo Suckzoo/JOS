@@ -1,3 +1,4 @@
+
 #include <inc/assert.h>
 #include <inc/x86.h>
 #include <kern/spinlock.h>
@@ -6,6 +7,7 @@
 #include <kern/monitor.h>
 
 void sched_halt(void);
+
 
 
 #ifndef VMM_GUEST
@@ -25,27 +27,65 @@ vmxon() {
 }
 #endif
 
+
 // Choose a user environment to run and run it.
 void
 sched_yield(void)
 {
 	struct Env *idle;
-	// Implement simple round-robin scheduling.
-	//
-	// Search through 'envs' for an ENV_RUNNABLE environment in
-	// circular fashion starting just after the env this CPU was
-	// last running.  Switch to the first such environment found.
-	//
-	// If no envs are runnable, but the environment previously
-	// running on this CPU is still ENV_RUNNING, it's okay to
-	// choose that environment.
-	//
-	// Never choose an environment that's currently running on
-	// another CPU (env_status == ENV_RUNNING). If there are
-	// no runnable environments, simply drop through to the code
-	// below to halt the cpu.
 
-	// LAB 4: Your code here.
+	int i, j, k;
+
+	// Determine the starting point for the search.
+	if (curenv)
+		i = curenv-envs;
+	else
+		i = NENV-1;
+	//cprintf("sched_yield searching from %d\n", i);
+
+	// Loop through all the environments at most once.
+	for (j = 1; j <= NENV; j++) {
+		k = (j + i) % NENV;
+		// If this environment is runnable, run it.
+		if (envs[k].env_status == ENV_RUNNABLE) {
+
+#ifndef VMM_GUEST
+			if (envs[k].env_type == ENV_TYPE_GUEST) {
+				int r;
+				if (envs[k].env_vmxinfo.vcpunum != cpunum()) {
+					continue;
+				}
+				r = vmxon();
+				if (r < 0) {
+					env_destroy(&envs[k]);
+					continue;
+				}
+			}
+#endif
+
+			env_run(&envs[k]);
+		}
+	}
+
+	if (curenv && curenv->env_status == ENV_RUNNING) {
+
+#ifndef VMM_GUEST
+		if (curenv->env_type == ENV_TYPE_GUEST) {
+			if (curenv->env_vmxinfo.vcpunum != cpunum()) {
+				return;
+			}
+			int r = vmxon();
+			if(r<0) {
+				env_destroy(curenv);
+			}
+		}
+		env_run(curenv);
+#endif // !VMM_GUEST
+
+		env_run(curenv);
+	}
+
+
 	// sched_halt never returns
 	sched_halt();
 }

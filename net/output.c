@@ -1,3 +1,4 @@
+
 #include "ns.h"
 
 extern union Nsipc nsipcbuf;
@@ -7,7 +8,16 @@ output(envid_t ns_envid)
 {
     binaryname = "ns_output";
 
-    // LAB 6: Your code here:
-    // 	- read a packet from the network server
-    //	- send the packet to the device driver
+
+    int r;
+
+    while (1) {
+        int32_t req, whom;
+        req = ipc_recv(&whom, &nsipcbuf, NULL);
+        assert(whom == ns_envid);
+        assert(req == NSREQ_OUTPUT);
+        if ((r = sys_net_transmit(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len)) < 0)
+            cprintf("Failed to transmit packet: %e\n", r);
+    }
+
 }

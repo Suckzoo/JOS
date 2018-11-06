@@ -1,4 +1,5 @@
 
+
 #include <inc/string.h>
 #include <inc/lib.h>
 
@@ -15,6 +16,7 @@ cputchar(int ch)
 int
 getchar(void)
 {
+
 	unsigned char c;
 	int r;
 
@@ -27,7 +29,9 @@ getchar(void)
 	if (r < 1)
 		return -E_EOF;
 	return c;
+
 }
+
 
 
 // "Real" console file descriptor implementation.

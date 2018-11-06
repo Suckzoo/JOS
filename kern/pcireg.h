@@ -1,3 +1,4 @@
+
 /*	$NetBSD: pcireg.h,v 1.45 2004/02/04 06:58:24 soren Exp $	*/
 
 /*

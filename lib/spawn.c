@@ -1,3 +1,4 @@
+
 #include <inc/lib.h>
 #include <inc/elf.h>
 
@@ -9,7 +10,9 @@
 static int init_stack(envid_t child, const char **argv, uintptr_t *init_esp);
 static int map_segment(envid_t child, uintptr_t va, size_t memsz,
 		       int fd, size_t filesz, off_t fileoffset, int perm);
+
 static int copy_shared_pages(envid_t child);
+
 
 // Spawn a child process from a program image loaded from the file system.
 // prog: the pathname of the program to run.
@@ -125,9 +128,11 @@ spawn(const char *prog, const char **argv)
 	close(fd);
 	fd = -1;
 
+
 	// Copy shared library state.
 	if ((r = copy_shared_pages(child)) < 0)
 		panic("copy_shared_pages: %e", r);
+
 
 	if ((r = sys_env_set_trapframe(child, &child_tf)) < 0)
 		panic("sys_env_set_trapframe: %e", r);
@@ -296,11 +301,30 @@ map_segment(envid_t child, uintptr_t va, size_t memsz,
 	return 0;
 }
 
+
 // Copy the mappings for shared pages into the child address space.
 static int
 copy_shared_pages(envid_t child)
 {
-	// LAB 5: Your code here.
+
+	int64_t pn, last_pn, r;
+	void* va;
+
+	for (pn = 0; pn < PGNUM(UTOP); ) {
+		if (!(uvpde[pn>>18] & PTE_P && uvpd[pn >> 9] & PTE_P))
+			pn += NPTENTRIES;
+		else {
+			last_pn = pn + NPTENTRIES;
+			for (; pn < last_pn; pn++)
+				if ((uvpt[pn] & (PTE_P | PTE_SHARE)) == (PTE_P | PTE_SHARE)) {
+					va = (void*) (pn << PGSHIFT);
+					if ((r = sys_page_map(0, va, child, va, uvpt[pn] & PTE_SYSCALL)) < 0)
+						return r;
+				}
+		}
+	}
+
 	return 0;
 }
+
 

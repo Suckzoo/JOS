@@ -1,3 +1,4 @@
+
 /*****************************************************************************
 * magic.c - Network Random Number Generator program file.
 *

@@ -1,3 +1,8 @@
+
+// NOTE: The "#if LAB >= 1" sections below used to be "#if SOL >= 5"
+// sections.  Now we gave them pipes in the last lab so they would
+// have more time to focus on the final project.
+
 #include <inc/lib.h>
 
 #define debug		0
@@ -126,9 +131,12 @@ fd_close(struct Fd *fd, bool must_exist)
 static struct Dev *devtab[] =
 {
 	&devfile,
+
 	&devsock,
+
 	&devpipe,
 	&devcons,
+
 	0
 };
 

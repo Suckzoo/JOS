@@ -1,3 +1,4 @@
+
 // Public definitions for the POSIX-like file descriptor emulation layer
 // that our user-land support library implements for the use of applications.
 // See the code in the lib directory for the implementation details.
@@ -27,9 +28,11 @@ struct FdFile {
 	int id;
 };
 
+
 struct FdSock {
 	int sockid;
 };
+
 
 struct Fd {
 	int fd_dev_id;
@@ -38,8 +41,10 @@ struct Fd {
 	union {
 		// File server files
 		struct FdFile fd_file;
+
 		// Network sockets
 		struct FdSock fd_sock;
+
 	};
 };
 
@@ -58,8 +63,11 @@ int	fd_lookup(int fdnum, struct Fd **fd_store);
 int	dev_lookup(int devid, struct Dev **dev_store);
 
 extern struct Dev devfile;
+
 extern struct Dev devsock;
+
 extern struct Dev devcons;
 extern struct Dev devpipe;
+
 
 #endif	// not JOS_INC_FD_H

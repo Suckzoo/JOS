@@ -1,3 +1,4 @@
+
 // System call stubs.
 
 #include <inc/syscall.h>
@@ -61,6 +62,7 @@ sys_getenvid(void)
 	return syscall(SYS_getenvid, 0, 0, 0, 0, 0, 0);
 }
 
+
 void
 sys_yield(void)
 {
@@ -93,11 +95,13 @@ sys_env_set_status(envid_t envid, int status)
 	return syscall(SYS_env_set_status, 1, envid, status, 0, 0, 0);
 }
 
+
 int
 sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 {
 	return syscall(SYS_env_set_trapframe, 1, envid, (uint64_t) tf, 0, 0, 0);
 }
+
 
 int
 sys_env_set_pgfault_upcall(envid_t envid, void *upcall)
@@ -117,11 +121,27 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint64_t)dstva, 0, 0, 0, 0);
 }
 
+
 unsigned int
 sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
+
+
+int
+sys_net_transmit(const char *data, unsigned int len)
+{
+	return syscall(SYS_net_transmit, 0, (uint64_t)data, len, 0, 0, 0);
+}
+
+int
+sys_net_receive(char *buf, unsigned int len)
+{
+	return syscall(SYS_net_receive, 0, (uint64_t)buf, len, 0, 0, 0);
+}
+
+
 
 
 int

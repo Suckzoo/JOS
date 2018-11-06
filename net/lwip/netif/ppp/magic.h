@@ -1,3 +1,4 @@
+
 /*****************************************************************************
 * magic.h - Network Random Number Generator header file.
 *

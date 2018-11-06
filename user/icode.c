@@ -1,10 +1,13 @@
+
 #include <inc/lib.h>
+
 
 #ifdef VMM_GUEST
 #define MOTD "/motd_guest"
 #else
 #define MOTD "/motd"
 #endif
+
 
 void
 umain(int argc, char **argv)
@@ -29,8 +32,10 @@ umain(int argc, char **argv)
 	cprintf("icode: close /motd\n");
 	close(fd);
 
+
 	cprintf("icode: spawn /sbin/init\n");
 	if ((r = spawnl("/sbin/init", "init", "initarg1", "initarg2", (char*)0)) < 0)
 		panic("icode: spawn /sbin/init: %e", r);
+
 	cprintf("icode: exiting\n");
 }

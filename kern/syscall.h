@@ -1,3 +1,4 @@
+
 #ifndef JOS_KERN_SYSCALL_H
 #define JOS_KERN_SYSCALL_H
 #ifndef JOS_KERNEL

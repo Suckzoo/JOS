@@ -1,3 +1,4 @@
+
 /* See COPYRIGHT for copyright information. */
 
 /* Support for reading the NVRAM from the real-time clock. */

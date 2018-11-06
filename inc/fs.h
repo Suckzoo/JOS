@@ -1,3 +1,4 @@
+
 // See COPYRIGHT for copyright information.
 
 #ifndef JOS_INC_FS_H
@@ -70,7 +71,9 @@ enum {
 	FSREQ_STAT,
 	FSREQ_FLUSH,
 	FSREQ_REMOVE,
+
 	FSREQ_SYNC
+
 };
 
 union Fsipc {
@@ -108,6 +111,7 @@ union Fsipc {
 	struct Fsreq_remove {
 		char req_path[MAXPATHLEN];
 	} remove;
+
 
 	// Ensure Fsipc is one page
 	char _pad[PGSIZE];

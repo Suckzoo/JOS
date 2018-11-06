@@ -12,9 +12,14 @@
 #include <kern/dwarf.h>
 #include <kern/kdebug.h>
 #include <kern/dwarf_api.h>
+
 #include <kern/trap.h>
 
+
 #define CMDBUF_SIZE	80	// enough for one VGA text line
+
+
+static int mon_exit(int argc, char** argv, struct Trapframe* tf);
 
 
 struct Command {
@@ -27,7 +32,15 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-	{ "backtrace", "Backtrace the call stack frame", mon_backtrace },
+
+	{ "backtrace", "Display a stack backtrace", mon_backtrace },
+
+#ifdef VMM_GUEST
+	{ "exit", "Exit VMM guest", mon_exit },
+#else
+	{ "exit", "Exit the kernel monitor", mon_exit },
+#endif
+
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -62,38 +75,109 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
-	uintptr_t rip;
-	read_rip(rip);
-	uintptr_t rbp = read_rbp();
-	cprintf("Stack backtrace:\n");
+
+	int i;
+	const uint64_t *rbp;
+	uint64_t rip;
+	uint64_t rsp;
+	uint64_t offset;
 	struct Ripdebuginfo info;
-	memset(&info, 0, sizeof(info));
-	int init_trace = 0;
-	while(rbp) {
-		cprintf("  rbp %016x rip %016x\n", rbp, rip);
-		int status = debuginfo_rip(rip, &info);
-		if (status == 0) {
-			cprintf("  %s:%d: %s+%016x  ", info.rip_file,
-											  info.rip_line,
-											  info.rip_fn_name,
-											  rip - info.rip_fn_addr);
-			cprintf("args:%d  ", info.rip_fn_narg);
-			uint64_t offset_sum = 0;
-			for(int i=0; i<info.rip_fn_narg;i++) {
-				offset_sum += info.size_fn_arg[i];
-				uint64_t arg_val = *((uint64_t*)(rbp - offset_sum));
-				uint64_t size_mask = (1ll << (info.size_fn_arg[i] * 8)) - 1;
-				cprintf("%016x ",arg_val & size_mask);
-			}
-			cprintf("\n");
-		} else {
-			cprintf("Failed to extract symbol information\n");
-		}
-		rip = *((long long*)(rbp+8));
-		rbp = *((long long*)rbp);
+
+	rbp = (const uint64_t*)read_rbp();
+	rsp = read_rsp();
+
+	if (tf) {
+		rbp = (const uint64_t*)tf->tf_regs.reg_rbp;
+		rsp = tf->tf_rsp;
 	}
+
+	read_rip(rip);
+
+	cprintf("Stack backtrace:\n");
+	while (rbp) {
+		// print this stack frame
+		cprintf("  rbp %016llx  rip %016llx\n", rbp, rip);
+		if (debuginfo_rip(rip, &info) >= 0){
+			Dwarf_Regtable_Entry *cfa_rule = &info.reg_table.cfa_rule;
+			uint64_t cfa;
+
+			cprintf("       %s:%d: %.*s+%016llx", info.rip_file, info.rip_line, 
+				info.rip_fn_namelen, info.rip_fn_name, rip - info.rip_fn_addr);
+
+			if (cfa_rule->dw_regnum == 6) { /* 6: rbp */
+				cfa = (uint64_t)rbp + cfa_rule->dw_offset;
+			} else if (cfa_rule->dw_regnum == 7) { /* 7: rsp */
+				cfa = rsp + cfa_rule->dw_offset;
+			} else {
+				goto unknown_cfa;
+			}
+
+			cprintf("  args:%d ", info.rip_fn_narg);
+			for (i = 0; i < info.rip_fn_narg ; i++)
+			{
+				uint64_t val;
+				assert(info.offset_fn_arg[i]);
+				offset = cfa + info.offset_fn_arg[i];
+				switch(info.size_fn_arg[i]) {
+					case 8:
+						val = *(uint64_t *) offset;
+						break;
+					case 4:
+						val = *(uint32_t *) offset;
+						break;
+					case 2:
+						val = *(uint16_t *) offset;
+						break;
+					case 1:
+						val = *(uint8_t *) offset;
+						break;
+				}
+				cprintf(" %016x", val);
+			}
+
+			switch(info.reg_table.rules[6].dw_regnum) { /* 6: rbp */
+				case DW_FRAME_SAME_VAL:
+					break;
+				case DW_FRAME_CFA_COL3:
+					rbp = (const uint64_t *)*(uint64_t *)(cfa + info.reg_table.rules[6].dw_offset);
+					break;
+				default:
+					panic("unknown reg rule");
+					break;
+			}
+
+			switch(info.reg_table.rules[16].dw_regnum) { /* 16: rip */
+				case DW_FRAME_SAME_VAL:
+					break;
+				case DW_FRAME_CFA_COL3:
+					rip = *(uint64_t *)(cfa + info.reg_table.rules[16].dw_offset);
+					break;
+				default:
+					panic("unknown reg rule");
+					break;
+			}
+
+			rsp = cfa;
+		} else {
+unknown_cfa:
+			// move to next lower stack frame
+			rip = rbp[1];
+			rbp = (const uint64_t*) rbp[0];
+		}
+		cprintf("\n");
+	}
+
 	return 0;
+}
+
+
+int
+mon_exit(int argc, char** argv, struct Trapframe* tf)
+{
+#ifdef VMM_GUEST
+	asm("hlt");
+#endif
+	return -1;
 }
 
 
@@ -150,8 +234,10 @@ monitor(struct Trapframe *tf)
 	cprintf("Welcome to the JOS kernel monitor!\n");
 	cprintf("Type 'help' for a list of commands.\n");
 
+
 	if (tf != NULL)
 		print_trapframe(tf);
+
 
 	while (1) {
 		buf = readline("K> ");

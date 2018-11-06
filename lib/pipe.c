@@ -1,3 +1,8 @@
+
+// NOTE: The "#if LAB >= 1" sections below used to be "#if SOL >= 5"
+// sections.  Now we gave them pipes in the last lab so they would
+// have more time to focus on the final project.
+
 #include <inc/lib.h>
 
 #define debug 0
@@ -75,6 +80,7 @@ err:
 static int
 _pipeisclosed(struct Fd *fd, struct Pipe *p)
 {
+
 	int n, nn, ret;
 
 	while (1) {
@@ -86,6 +92,7 @@ _pipeisclosed(struct Fd *fd, struct Pipe *p)
 		if (n != nn && ret == 1)
 			cprintf("pipe race avoided\n", n, thisenv->env_runs, ret);
 	}
+
 }
 
 int
@@ -104,6 +111,7 @@ pipeisclosed(int fdnum)
 static ssize_t
 devpipe_read(struct Fd *fd, void *vbuf, size_t n)
 {
+
 	uint8_t *buf;
 	size_t i;
 	struct Pipe *p;
@@ -134,11 +142,13 @@ devpipe_read(struct Fd *fd, void *vbuf, size_t n)
 		p->p_rpos++;
 	}
 	return i;
+
 }
 
 static ssize_t
 devpipe_write(struct Fd *fd, const void *vbuf, size_t n)
 {
+
 	const uint8_t *buf;
 	size_t i;
 	struct Pipe *p;
@@ -169,6 +179,7 @@ devpipe_write(struct Fd *fd, const void *vbuf, size_t n)
 	}
 
 	return i;
+
 }
 
 static int
@@ -185,7 +196,9 @@ devpipe_stat(struct Fd *fd, struct Stat *stat)
 static int
 devpipe_close(struct Fd *fd)
 {
+
 	(void) sys_page_unmap(0, fd);
+
 	return sys_page_unmap(0, fd2data(fd));
 }
 

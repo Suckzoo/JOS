@@ -1,3 +1,4 @@
+
 #include "ns.h"
 
 extern union Nsipc nsipcbuf;
@@ -6,6 +7,22 @@ extern union Nsipc nsipcbuf;
 input(envid_t ns_envid)
 {
     binaryname = "ns_input";
+
+    while (1) {
+        int r;
+        if ((r = sys_page_alloc(0, &nsipcbuf, PTE_P|PTE_U|PTE_W)) < 0)
+            panic("sys_page_alloc: %e", r);
+        r = sys_net_receive(nsipcbuf.pkt.jp_data, 1518);
+        if (r == 0) {
+            sys_yield();
+        } else if (r < 0) {
+            cprintf("Failed to receive packet: %e\n", r);
+        } else if (r > 0) {
+            nsipcbuf.pkt.jp_len = r;
+            ipc_send(ns_envid, NSREQ_INPUT, &nsipcbuf, PTE_U|PTE_P);
+        }
+    }
+
 
     // LAB 6: Your code here:
     // 	- read a packet from the device driver

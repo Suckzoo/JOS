@@ -1,3 +1,8 @@
+
+// NOTE: The "#if LAB >= 1" sections below used to be "#if SOL >= 5"
+// sections.  Now we gave them the entire shell in the last lab so
+// they would have more time to focus on the final project.
+
 #include <inc/lib.h>
 
 #define BUFSIZ 1024		/* Find the buffer overrun bug! */
@@ -47,6 +52,7 @@ again:
 				cprintf("syntax error: < not followed by word\n");
 				exit();
 			}
+
 			if ((fd = open(t, O_RDONLY)) < 0) {
 				cprintf("open %s for read: %e", t, fd);
 				exit();
@@ -55,6 +61,7 @@ again:
 				dup(fd, 0);
 				close(fd);
 			}
+
 			break;
 
 		case '>':	// Output redirection
@@ -63,6 +70,7 @@ again:
 				cprintf("syntax error: > not followed by word\n");
 				exit();
 			}
+
 			if ((fd = open(t, O_WRONLY|O_CREAT|O_TRUNC)) < 0) {
 				cprintf("open %s for write: %e", t, fd);
 				exit();
@@ -71,9 +79,11 @@ again:
 				dup(fd, 1);
 				close(fd);
 			}
+
 			break;
 
 		case '|':	// Pipe
+
 			if ((r = pipe(p)) < 0) {
 				cprintf("pipe: %e", r);
 				exit();
@@ -100,6 +110,7 @@ again:
 				close(p[0]);
 				goto runit;
 			}
+
 			panic("| not implemented");
 			break;
 
@@ -272,7 +283,9 @@ umain(int argc, char **argv)
 {
 	int r, interactive, echocmds;
 	struct Argstate args;
+
 	bool auto_terminate = false;
+
 	interactive = '?';
 	echocmds = 0;
 	argstart(&argc, argv, &args);
@@ -290,6 +303,7 @@ umain(int argc, char **argv)
 		default:
 			usage();
 		}
+
 	close(0);
 	if ((r = opencons()) < 0)
 		panic("opencons: %e", r);
@@ -297,6 +311,7 @@ umain(int argc, char **argv)
 		panic("first opencons used fd %d", r);
 	if ((r = dup(0, 1)) < 0)
 		panic("dup: %e", r);
+
 	if (argc > 2)
 		usage();
 	if (argc == 2) {
@@ -310,20 +325,24 @@ umain(int argc, char **argv)
 
 	while (1) {
 		char *buf;
+
 		#ifndef VMM_GUEST
 		buf = readline(interactive ? "$ " : NULL);
 		#else
 		buf = readline(interactive ? "vm$ " : NULL);
 		#endif
+
 		if (buf == NULL) {
 			if (debug)
 				cprintf("EXITING\n");
 			exit();	// end of file
 		}
+
 		#ifndef VMM_GUEST
 		if(strcmp(buf, "vmmanager")==0)
 			auto_terminate = true;
 		#endif
+
 		if(strcmp(buf, "quit")==0)
 			exit();
 		if (debug)
@@ -343,8 +362,10 @@ umain(int argc, char **argv)
 			exit();
 		} else {
 			wait(r);
+
 			if (auto_terminate)
 				exit();
+
 		}
 	}
 }

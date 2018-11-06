@@ -7,9 +7,12 @@
 #include <inc/assert.h>
 
 #include <kern/console.h>
+
 #include <kern/picirq.h>
+
 #include <inc/vmx.h>
 #include <vmm/vmx.h>
+
 
 static void cons_intr(int (*proc)(void));
 static void cons_putc(int c);
@@ -103,9 +106,11 @@ serial_init(void)
 	(void) inb(COM1+COM_IIR);
 	(void) inb(COM1+COM_RX);
 
+
 	// Enable serial interrupts
 	if (serial_exists)
 		irq_setmask_8259A(irq_mask_8259A & ~(1<<4));
+
 }
 
 
@@ -134,6 +139,7 @@ lpt_putc(int c)
 static unsigned addr_6845;
 static uint16_t *crt_buf;
 static uint16_t crt_pos;
+
 
 static void
 cga_init(void)
@@ -165,9 +171,11 @@ cga_init(void)
 
 
 
+
 static void
 cga_putc(int c)
 {
+
 	// if no attribute given, then use black on white
 	if (!(c & ~0xFF))
 		c |= 0x0700;
@@ -197,9 +205,12 @@ cga_putc(int c)
 		break;
 	}
 
-	// What is the purpose of this?
+
+	/* scroll if necessary */
+
 	if (crt_pos >= CRT_SIZE) {
 		int i;
+
 
 		memmove(crt_buf, crt_buf + CRT_COLS, (CRT_SIZE - CRT_COLS) * sizeof(uint16_t));
 		for (i = CRT_SIZE - CRT_COLS; i < CRT_SIZE; i++)
@@ -213,6 +224,7 @@ cga_putc(int c)
 	outb(addr_6845, 15);
 	outb(addr_6845 + 1, crt_pos);
 }
+
 
 
 /***** Keyboard input code *****/
@@ -357,17 +369,20 @@ kbd_proc_data(void)
 	}
 
 	// Process special keys
+
 	// Ctrl-Alt-Del: reboot
 	if (!(~shift & (CTL | ALT)) && c == KEY_DEL) {
 		cprintf("Rebooting!\n");
 		outb(0x92, 0x3); // courtesy of Chris Frost
 	}
+
 #ifdef VMM_GUEST
 	if (c == 0x1b) {
 		cprintf("ESC pressed\n");
 		asm("vmcall":"=a"(r): "0"(VMX_VMCALL_BACKTOHOST));
 	}
 #endif
+
 	return c;
 }
 
@@ -380,9 +395,11 @@ kbd_intr(void)
 static void
 kbd_init(void)
 {
+
 	// Drain the kbd buffer so that Bochs generates interrupts.
 	kbd_intr();
 	irq_setmask_8259A(irq_mask_8259A & ~(1<<1));
+
 }
 
 

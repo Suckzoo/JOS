@@ -1,3 +1,4 @@
+
 /*****************************************************************************
 * auth.h -  PPP Authentication and phase control header file.
 *

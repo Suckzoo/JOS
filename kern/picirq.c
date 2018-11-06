@@ -1,3 +1,4 @@
+
 /* See COPYRIGHT for copyright information. */
 
 #include <inc/assert.h>
@@ -83,6 +84,7 @@ irq_setmask_8259A(uint16_t mask)
 			cprintf(" %d", i);
 	cprintf("\n");
 }
+
 
 void
 irq_eoi(void)

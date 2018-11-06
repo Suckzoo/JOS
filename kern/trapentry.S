@@ -45,49 +45,66 @@
 
 .text
 
-/*
- * Lab 3: Your code here for generating entry points for the different traps.
-   Find the PUSHA,POPA macros in kern/macro.h. Since amd64 doesn't support
-   pusha,popa so you will find these macros handy.
- */
-	TRAPHANDLER_NOEC(TH_0, 0)
-	TRAPHANDLER_NOEC(TH_1, 1)
-	TRAPHANDLER_NOEC(TH_2, 2)
-	TRAPHANDLER_NOEC(TH_3, 3)
-	TRAPHANDLER_NOEC(TH_4, 4)
-	TRAPHANDLER_NOEC(TH_5, 5)
-	TRAPHANDLER_NOEC(TH_6, 6)
-	TRAPHANDLER_NOEC(TH_7, 7)
-	TRAPHANDLER(TH_8, 8)
-	TRAPHANDLER_NOEC(TH_9, 9) /* RESERVED! */
-	TRAPHANDLER(TH_10, 10)
-	TRAPHANDLER(TH_11, 11)
-	TRAPHANDLER(TH_12, 12)
-	TRAPHANDLER(TH_13, 13)
-	TRAPHANDLER(TH_14, 14)
-	TRAPHANDLER_NOEC(TH_15, 15) /* RESERVED! */
-	TRAPHANDLER_NOEC(TH_16, 16)
-	TRAPHANDLER(TH_17, 17)
-	TRAPHANDLER_NOEC(TH_18, 18)
-	TRAPHANDLER_NOEC(TH_19, 19)
-	TRAPHANDLER_NOEC(TH_48, 48)
-	TRAPHANDLER(TH_500, 500)
 
-/*
- * Lab 3: Your code here for _alltraps
- *
- * Hint: Be sure to review the x64 calling convention from lab1
- *       for how to pass a pointer to the trapframe.
- */
+/* CPU traps */
+TRAPHANDLER_NOEC(Xdivide, T_DIVIDE)
+TRAPHANDLER_NOEC(Xdebug,  T_DEBUG)
+TRAPHANDLER_NOEC(Xnmi,    T_NMI)
+TRAPHANDLER_NOEC(Xbrkpt,  T_BRKPT)
+TRAPHANDLER_NOEC(Xoflow,  T_OFLOW)
+TRAPHANDLER_NOEC(Xbound,  T_BOUND)
+TRAPHANDLER_NOEC(Xillop,  T_ILLOP)
+TRAPHANDLER_NOEC(Xdevice, T_DEVICE)
+TRAPHANDLER     (Xdblflt, T_DBLFLT)
+TRAPHANDLER     (Xtss,    T_TSS)
+TRAPHANDLER     (Xsegnp,  T_SEGNP)
+TRAPHANDLER     (Xstack,  T_STACK)
+TRAPHANDLER     (Xgpflt,  T_GPFLT)
+TRAPHANDLER     (Xpgflt,  T_PGFLT)
+TRAPHANDLER_NOEC(Xfperr,  T_FPERR)
+TRAPHANDLER     (Xalign,  T_ALIGN)
+TRAPHANDLER_NOEC(Xmchk,   T_MCHK)
+
+/* the external device interrupts */
+TRAPHANDLER_NOEC(Xirq0,   IRQ_OFFSET+0)
+TRAPHANDLER_NOEC(Xirq1,   IRQ_OFFSET+1)
+TRAPHANDLER_NOEC(Xirq2,   IRQ_OFFSET+2)
+TRAPHANDLER_NOEC(Xirq3,   IRQ_OFFSET+3)
+TRAPHANDLER_NOEC(Xirq4,   IRQ_OFFSET+4)
+TRAPHANDLER_NOEC(Xirq5,   IRQ_OFFSET+5)
+TRAPHANDLER_NOEC(Xirq6,   IRQ_OFFSET+6)
+TRAPHANDLER_NOEC(Xirq7,   IRQ_OFFSET+7)
+TRAPHANDLER_NOEC(Xirq8,   IRQ_OFFSET+8)
+TRAPHANDLER_NOEC(Xirq9,   IRQ_OFFSET+9)
+TRAPHANDLER_NOEC(Xirq10,  IRQ_OFFSET+10)
+TRAPHANDLER_NOEC(Xirq11,  IRQ_OFFSET+11)
+TRAPHANDLER_NOEC(Xirq12,  IRQ_OFFSET+12)
+TRAPHANDLER_NOEC(Xirq13,  IRQ_OFFSET+13)
+TRAPHANDLER_NOEC(Xirq14,  IRQ_OFFSET+14)
+TRAPHANDLER_NOEC(Xirq15,  IRQ_OFFSET+15)
+
+/* system call entry point */
+TRAPHANDLER_NOEC(Xsyscall, T_SYSCALL)
+
+/* default handler -- not for any specific trap */
+TRAPHANDLER     (Xdefault, T_DEFAULT)
+
+
+
+.globl	_alltraps
+.type	_alltraps,@function
+.p2align 4, 0x90		/* 16-byte alignment, nop filled */
 _alltraps:
-	sub $16,%rsp
-	movw %ds,8(%rsp)
-	movw %es,0(%rsp)
-	PUSHA
-	movq $GD_KD,%rax
-	movq %rax,%es
-	movq %rax,%ds
-	movq %rsp,%rdi
-	call trap
-	
-	
+    subq $16,%rsp
+    movw %ds,8(%rsp)
+    movw %es,0(%rsp)
+    PUSHA
+    movl $GD_KD, %eax
+    movw %ax, %ds
+    movw %ax, %es
+    movw %ax, %ss
+    movw %ax, %fs
+    movw %ax, %gs
+    movq %rsp,%rdi
+    call trap   # never returns 
+spin:	jmp spin

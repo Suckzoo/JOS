@@ -1,3 +1,4 @@
+
 /*
  * Minimal PIO-based (non-interrupt-driven) IDE driver code.
  * For information about what all this IDE/ATA magic means,
@@ -13,6 +14,7 @@
 #define IDE_ERR		0x01
 
 static int diskno = 1;
+
 
 static int
 ide_wait_ready(bool check_error)
@@ -59,12 +61,14 @@ ide_set_disk(int d)
 	diskno = d;
 }
 
+
 int
 ide_read(uint32_t secno, void *dst, size_t nsecs)
 {
 	int r;
 
 	assert(nsecs <= 256);
+
 
 	ide_wait_ready(0);
 
@@ -90,6 +94,7 @@ ide_write(uint32_t secno, const void *src, size_t nsecs)
 	int r;
 
 	assert(nsecs <= 256);
+
 
 	ide_wait_ready(0);
 

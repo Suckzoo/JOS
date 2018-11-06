@@ -1,3 +1,4 @@
+
 #include <inc/lib.h>
 
 // Collect up to 256 characters into a buffer
@@ -73,7 +74,9 @@ printf(const char *fmt, ...)
 	int cnt;
 
 	va_start(ap, fmt);
+
 	cnt = vfprintf(1, fmt, ap);
+
 	va_end(ap);
 
 	return cnt;

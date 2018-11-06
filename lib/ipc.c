@@ -1,9 +1,12 @@
+
 // User-level IPC library routines
 
 #include <inc/lib.h>
+
 #ifdef VMM_GUEST
 #include <inc/vmx.h>
 #endif
+
 
 // Receive a value via IPC and return it.
 // If 'pg' is nonnull, then any page sent by the sender will be mapped at
@@ -25,9 +28,24 @@
 int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
-	// LAB 4: Your code here.
-	panic("ipc_recv not implemented");
-	return 0;
+
+	int r;
+
+	if (!pg)
+		pg = (void*) UTOP;
+	if ((r = sys_ipc_recv(pg)) < 0) {
+		if (from_env_store)
+			*from_env_store = 0;
+		if (perm_store)
+			*perm_store = 0;
+		return r;
+	}
+	if (from_env_store)
+		*from_env_store = thisenv->env_ipc_from;
+	if (perm_store)
+		*perm_store = thisenv->env_ipc_perm;
+	return thisenv->env_ipc_value;
+
 }
 
 // Send 'val' (and 'pg' with 'perm', if 'pg' is nonnull) to 'toenv'.
@@ -41,9 +59,19 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
-	// LAB 4: Your code here.
-	panic("ipc_send not implemented");
+
+	int r;
+
+	if (!pg)
+		pg = (void*) UTOP;
+	while ((r = sys_ipc_try_send(to_env, val, pg, perm)) == -E_IPC_NOT_RECV) {
+		sys_yield();
+	}
+	if (r < 0)
+		panic("error in ipc_send: %e", r);
+
 }
+
 
 #ifdef VMM_GUEST
 
@@ -51,20 +79,51 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 // Should behave similarly to ipc_recv, except replacing the system call with a vmcall.
 int32_t
 ipc_host_recv(void *pg) {
-	// LAB 8: Your code here.
-	panic("ipc_recv not implemented in VM guest");
+
+	/* FIXME: This should be SOL 8 */
+	int r = 0, val = 0;
+
+	if (!pg)
+		pg = (void*) UTOP;
+	sys_page_alloc(0, pg, PTE_U|PTE_P|PTE_W);
+	physaddr_t pa = PTE_ADDR(uvpt[PGNUM(pg)]);
+	asm("vmcall": "=a"(r), "=S"(val)  : "0"(VMX_VMCALL_IPCRECV), "b"(pa));
+	/* cprintf("Returned IPC response from host: %d %d\n", r, -val);*/
+	if (r < 0) {
+		return r;
+	}
+	return val;
+
 }
 
 // Access to host IPC interface through VMCALL.
 // Should behave similarly to ipc_send, except replacing the system call with a vmcall.
+// This function should also convert pg from guest virtual to guest physical for the IPC call
 void
 ipc_host_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
-	// LAB 8: Your code here.
-	panic("ipc_send not implemented in VM guest");
+
+	/* FIXME: This should be SOL 8 */
+	int r = 0;
+
+	if (!pg)
+		pg = (void*) UTOP;
+	// Convert pg from guest virtual address to guest physical address.
+	physaddr_t pa = PTE_ADDR(uvpt[PGNUM(pg)]);
+	asm("vmcall": "=a"(r): "0"(VMX_VMCALL_IPCSEND), "b"(to_env), "c"(val), 
+            "d"(pa), "S"(perm));
+	while(r == -E_IPC_NOT_RECV) {
+		sys_yield();
+		asm("vmcall": "=a"(r): "0"(VMX_VMCALL_IPCSEND), "b"(to_env), "c"(val), 
+		    "d"(pa), "S"(perm));
+	}
+	if (r < 0)
+		panic("error in ipc_send: %e", r);
+
 }
 
 #endif // VMM_GUEST
+
 
 // Find the first environment of the given type.  We'll use this to
 // find special environments.

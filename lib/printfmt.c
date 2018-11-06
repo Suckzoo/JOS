@@ -1,3 +1,4 @@
+
 // Stripped-down primitive printf-style formatting routines,
 // used in common by printf, sprintf, fprintf, etc.
 // This code is also used by both the kernel and user programs.
@@ -26,8 +27,10 @@ static const char * const error_string[MAXERROR] =
 	[E_NO_MEM]	= "out of memory",
 	[E_NO_FREE_ENV]	= "out of environments",
 	[E_FAULT]	= "segmentation fault",
+
 	[E_IPC_NOT_RECV]= "env is not recving",
 	[E_EOF]		= "unexpected end of file",
+
 	[E_NO_DISK]	= "no free space on disk",
 	[E_MAX_OPEN]	= "too many files are open",
 	[E_NOT_FOUND]	= "file or block not found",
@@ -35,6 +38,7 @@ static const char * const error_string[MAXERROR] =
 	[E_FILE_EXISTS]	= "file already exists",
 	[E_NOT_EXEC]	= "file is not a valid executable",
 	[E_NOT_SUPP]	= "operation not supported",
+
 };
 
 /*
@@ -219,10 +223,11 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 
 			// (unsigned) octal
 		case 'o':
-			// Replace this with your code.
-			num = getint(&aq, 3);
+
+			num = getuint(&aq, 3);
 			base = 8;
 			goto number;
+
 
 			// pointer
 		case 'p':

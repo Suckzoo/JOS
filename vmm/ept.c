@@ -1,4 +1,5 @@
 
+
 #include <vmm/ept.h>
 #include <inc/x86.h>
 #include <inc/error.h>
@@ -48,7 +49,9 @@ static inline int epte_present(epte_t epte)
 static int ept_lookup_gpa(epte_t* eptrt, void *gpa, 
 			  int create, epte_t **epte_out) {
     /* Your code here */
+
     panic("ept_lookup_gpa not implemented\n");
+
     return 0;
 
 }
@@ -99,13 +102,19 @@ void free_guest_mem(epte_t* eptrt) {
 
 // Add Page pp to a guest's EPT at guest physical address gpa
 //  with permission perm.  eptrt is the EPT root.
+//
+// This function should increment the reference count of pp on a
+//   successful insert.  If you overwrite a mapping, your code should
+//   decrement the reference count of the old mapping.
 // 
 // Return 0 on success, <0 on failure.
 //
 int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 
     /* Your code here */
+
     panic("ept_page_insert not implemented\n");
+
     return 0;
 }
 
@@ -125,7 +134,9 @@ int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm,
         int overwrite) {
 
     /* Your code here */
+
     panic("ept_map_hva2gpa not implemented\n");
+
 
     return 0;
 }

@@ -1,3 +1,4 @@
+
 #include <inc/lib.h>
 
 struct {
@@ -47,6 +48,7 @@ umain(int argc, char **argv)
 	}
 	cprintf("%s\n", args);
 
+
 	cprintf("init: running sh\n");
 
 	// being run directly from kernel, so no file descriptors open yet
@@ -66,8 +68,11 @@ umain(int argc, char **argv)
 		}
 		cprintf("init waiting\n");
 		wait(r);
+
 #ifdef VMM_GUEST
 		break;
 #endif
+
 	}
+
 }

@@ -8,7 +8,7 @@ r = Runner(save("jos.out"),
 def matchtest(parent, name, *args, **kw):
     def do_test():
         r.match(*args, **kw)
-    test(5, name, parent=parent)(do_test)
+    test(1, name, parent=parent)(do_test)
 
 @test(0, "internal FS tests [fs/test.c]")
 def test_fs():
@@ -52,7 +52,7 @@ matchtest(test_testfile, "open",
 matchtest(test_testfile, "large file",
           "large file is good")
 
-@test(10, "motd display [writemotd]")
+@test(1, "motd display [writemotd]")
 def test_writemotd1():
     r.user_test("writemotd", snapshot=False)
     r.match("OLD MOTD",
@@ -60,7 +60,7 @@ def test_writemotd1():
             "NEW MOTD",
             "This is the NEW message of the day!")
 
-@test(10, "motd change [writemotd]", parent=test_writemotd1)
+@test(1, "motd change [writemotd]", parent=test_writemotd1)
 def test_writemotd2():
     try:
         r.user_test("writemotd")
@@ -71,13 +71,13 @@ def test_writemotd2():
     finally:
         reset_fs()
 
-@test(10, "PTE_SHARE [testpteshare]")
+@test(1, "PTE_SHARE [testpteshare]")
 def test_pte_share():
     r.user_test("testpteshare")
     r.match('fork handles PTE_SHARE right',
             'spawn handles PTE_SHARE right')
 
-@test(20, "start the shell [icode]")
+@test(1, "start the shell [icode]")
 def test_icode():
     r.user_test("icode")
     r.match('icode: read /motd',
@@ -91,7 +91,7 @@ def test_icode():
             'init: running sh',
             '\$ ')
 
-@test(20)
+@test(1)
 def test_testshell():
     r.user_test("testshell", timeout=60)
     r.match("shell ran correctly")
@@ -128,7 +128,7 @@ def gen_primes(n):
         yield rest[0]
         rest = [n for n in rest if n % rest[0]]
 
-@test(10)
+@test(1)
 def test_primespipe():
     r.user_test("primespipe", stop_on_line("[0-9]{4}$"), timeout=120)
     primes = set(gen_primes(1000))

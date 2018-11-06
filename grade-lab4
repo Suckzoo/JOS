@@ -14,7 +14,7 @@ def E(s, trim=False):
     return re.sub(r"\$E([0-9]+)",
                   lambda m: tmpl % (0x1000 + int(m.group(1))-1), s)
 
-@test(5)
+@test(2)
 def test_dumbfork():
     r.user_test("dumbfork")
     r.match(E(".00000000. new env $E1"),
@@ -31,7 +31,7 @@ def test_dumbfork():
 
 end_part("A")
 
-@test(5)
+@test(1)
 def test_faultread():
     r.user_test("faultread")
     r.match(E(".$E1. user fault va 00000000 ip 008....."),
@@ -41,7 +41,7 @@ def test_faultread():
             E(".$E1. free env $E1"),
             no=["I read ........ from location 0."])
 
-@test(5)
+@test(1)
 def test_faultwrite():
     r.user_test("faultwrite")
     r.match(E(".$E1. user fault va 00000000 ip 008....."),
@@ -50,14 +50,14 @@ def test_faultwrite():
             "  err  0x00000006.*",
             E(".$E1. free env $E1"))
 
-@test(5)
+@test(1)
 def test_faultdie():
     r.user_test("faultdie")
     r.match("i faulted at va deadbeef, err 6",
             E(".$E1. exiting gracefully"),
             E(".$E1. free env $E1"))
 
-@test(5)
+@test(1)
 def test_faultregs():
     r.user_test("faultregs")
     r.match("Registers in UTrapframe OK",
@@ -65,7 +65,7 @@ def test_faultregs():
             no=["Registers in UTrapframe MISMATCH",
                 "Registers after page-fault MISMATCH"])
 
-@test(5)
+@test(1)
 def test_faultalloc():
     r.user_test("faultalloc")
     r.match("fault deadbeef",
@@ -76,31 +76,31 @@ def test_faultalloc():
             E(".$E1. exiting gracefully"),
             E(".$E1. free env $E1"))
 
-@test(5)
+@test(1)
 def test_faultallocbad():
     r.user_test("faultallocbad")
     r.match(E(".$E1. user_mem_check assertion failure for va deadbeef"),
             E(".$E1. free env $E1"))
 
-@test(5)
+@test(1)
 def test_faultnostack():
     r.user_test("faultnostack")
     r.match(E(".$E1. user_mem_check assertion failure for va ef7ff..."),
             E(".$E1. free env $E1"))
 
-@test(5)
+@test(1)
 def test_faultbadhandler():
     r.user_test("faultbadhandler")
     r.match(E(".$E1. user_mem_check assertion failure for va (deadb|ef7fe)..."),
             E(".$E1. free env $E1"))
 
-@test(5)
+@test(1)
 def test_faultevilhandler():
     r.user_test("faultevilhandler")
     r.match(E(".$E1. user_mem_check assertion failure for va (f0100|ef7fe)..."),
             E(".$E1. free env $E1"))
 
-@test(5)
+@test(1)
 def test_forktree():
     r.user_test("forktree")
     r.match("....: I am .0.",
@@ -118,7 +118,7 @@ def test_forktree():
 
 end_part("B")
 
-@test(5)
+@test(2)
 def test_spin():
     r.user_test("spin")
     r.match(E(".00000000. new env $E1"),
@@ -132,7 +132,7 @@ def test_spin():
             E(".$E1. exiting gracefully"),
             E(".$E1. free env $E1"))
 
-@test(5)
+@test(2)
 def test_stresssched():
     r.user_test("stresssched", make_args=["CPUS=4"])
     r.match(".000010... stresssched on CPU 0",
@@ -141,7 +141,7 @@ def test_stresssched():
             ".000010... stresssched on CPU 3",
             no=[".*ran on two CPUs at once"])
 
-@test(5)
+@test(1)
 def test_sendpage():
     r.user_test("sendpage", make_args=["CPUS=2"])
     r.match(".00000000. new env 00001000",
@@ -156,7 +156,7 @@ def test_sendpage():
             E(".$E2. exiting gracefully"),
             E(".$E2. free env $E2"))
 
-@test(5)
+@test(1)
 def test_pingpong():
     r.user_test("pingpong", make_args=["CPUS=4"])
     r.match(E(".00000000. new env $E1"),
@@ -172,7 +172,7 @@ def test_pingpong():
             E(".$E2. exiting gracefully"),
             E(".$E2. free env $E2"))
 
-@test(5)
+@test(2)
 def test_primes():
     r.user_test("primes", stop_on_line("CPU .: 1877"), stop_on_line(".*panic"),
                 make_args=["CPUS=4"], timeout=30)

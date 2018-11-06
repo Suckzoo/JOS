@@ -1,4 +1,5 @@
 
+
 #include <vmm/vmx.h>
 #include <inc/error.h>
 #include <vmm/vmexits.h>
@@ -14,6 +15,7 @@
 #include <kern/syscall.h>
 #include <kern/env.h>
 #include <kern/cpu.h>
+
 
 static int vmdisk_number = 0;	//this number assign to the vm
 int 
@@ -37,6 +39,7 @@ find_msr_in_region(uint32_t msr_idx, uintptr_t *area, int area_sz, struct vmx_ms
 	}
 	return false;
 }
+
 
 bool
 handle_interrupt_window(struct Trapframe *tf, struct VmxGuestInfo *ginfo, uint32_t host_vector) {
@@ -136,7 +139,9 @@ bool
 handle_eptviolation(uint64_t *eptrt, struct VmxGuestInfo *ginfo) {
 	uint64_t gpa = vmcs_read64(VMCS_64BIT_GUEST_PHYSICAL_ADDR);
 	int r;
+
 	if(gpa < 0xA0000 || (gpa >= 0x100000 && gpa < ginfo->phys_sz)) 
+
 	{
 		// Allocate a new page to the guest.
 		struct PageInfo *p = page_alloc(0);
@@ -148,6 +153,7 @@ handle_eptviolation(uint64_t *eptrt, struct VmxGuestInfo *ginfo) {
 		r = ept_map_hva2gpa(eptrt, 
 				    page2kva(p), (void *)ROUNDDOWN(gpa, PGSIZE), __EPTE_FULL, 0);
 		assert(r >= 0);
+
 		/* cprintf("EPT violation for gpa:%x mapped KVA:%x\n", gpa, page2kva(p)); */
 		return true;
 	} else if (gpa >= CGA_BUF && gpa < CGA_BUF + PGSIZE) {
@@ -194,6 +200,7 @@ handle_ioinstr(struct Trapframe *tf, struct VmxGuestInfo *ginfo) {
 		}
 		
 	} 
+
 	if(handled) {
 		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
 		return true;
@@ -217,10 +224,13 @@ bool
 handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 {
 	/* Your code here */
+
 	cprintf("Handle cpuid not implemented\n");
 	return false;
 
+
 }
+
 
 // Handle vmcall traps from the guest.
 // We currently support 3 traps: read the virtual e820 map, 
@@ -255,17 +265,24 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
+
 		cprintf("e820 map hypercall not implemented\n");	    
 		handled = false;
+
 		break;
 	case VMX_VMCALL_IPCSEND:
 		// Issue the sys_ipc_send call to the host.
 		// 
 		// If the requested environment is the HOST FS, this call should
 		//  do this translation.
+		//
+		// The input should be a guest physical address; you will need to convert
+		//  this to a host virtual address for the IPC to work properly.
 		/* Your code here */
+
 		cprintf("IPC send hypercall not implemented\n");	    
 		handled = false;
+
 		break;
 
 	case VMX_VMCALL_IPCRECV:
@@ -273,8 +290,10 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// NB: because recv can call schedule, clobbering the VMCS, 
 		// you should go ahead and increment rip before this call.
 		/* Your code here */
+
 		cprintf("IPC recv hypercall not implemented\n");	    
 		handled = false;
+
 		break;
 	case VMX_VMCALL_LAPICEOI:
 		lapic_eoi();
@@ -298,6 +317,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		 * Hint: The TA solution does not hard-code the length of the vmcall instruction.
 		 */
 		/* Your code here */
+
 	}
 	return handled;
 }

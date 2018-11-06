@@ -1,3 +1,4 @@
+
 // Search for and parse the multiprocessor configuration table
 // See http://developer.intel.com/design/pentium/datashts/24201606.pdf
 
@@ -62,6 +63,7 @@ struct mpproc {         // processor table entry [MP 4.3.1]
 // mpproc flags
 #define MPROC_EN 0x01
 #define MPPROC_BOOT 0x02                // This mpproc is the bootstrap processor
+
 
 // Table entry types
 #define MPPROC    0x00  // One per processor
@@ -204,6 +206,7 @@ mp_init(void)
 		case MPIOAPIC:
 		case MPIOINTR:
 		case MPLINTR:
+
 		p += 8;
 		continue;
 		default:
@@ -213,10 +216,12 @@ mp_init(void)
 		}
 	}
 
+
 	for (i=0; i< NCPU; ++i) {
 		cpus[i].is_vmx_root = false;
 		cpus[i].vmxon_region = 0;
 	}
+
 
 	bootcpu->cpu_status = CPU_STARTED;
 	if (!ismp) {

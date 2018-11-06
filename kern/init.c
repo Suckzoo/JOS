@@ -9,23 +9,32 @@
 #include <kern/console.h>
 #include <kern/kdebug.h>
 #include <kern/dwarf_api.h>
+
 #include <kern/pmap.h>
 #include <kern/kclock.h>
+
 #include <kern/env.h>
 #include <kern/trap.h>
+
 #include <kern/sched.h>
 #include <kern/picirq.h>
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
+
 #include <kern/time.h>
 #include <kern/pci.h>
+
 #if defined(TEST_EPT_MAP)
 int test_ept_map(void);
 #endif
 
+
 uint64_t end_debug;
 
+
 static void boot_aps(void);
+
+
 
 extern unsigned char mpentry_start[], mpentry_end[];
 
@@ -41,6 +50,8 @@ int64_t vmcall(int num, int check, uint64_t a1, uint64_t a2, uint64_t a3, uint64
     return ret;
 }
 #endif
+
+
 
 
 void
@@ -59,7 +70,10 @@ i386_init(void)
 	// Can't call cprintf until after we do this!
 	cons_init();
 
+
 	cprintf("6828 decimal is %o octal!\n", 6828);
+
+
 
 #ifdef VMM_GUEST
 	/* Guest VMX extension exposure check */
@@ -78,12 +92,17 @@ i386_init(void)
 	end_debug = read_section_headers((0x10000+KERNBASE), (uintptr_t)end);
 #endif
 
+
+
 	// Lab 2 memory management initialization functions
 	x64_vm_init();
+
 
 	// Lab 3 user environment initialization functions
 	env_init();
 	trap_init();
+
+
 
 #ifndef VMM_GUEST
 	// Lab 4 multiprocessor initialization functions
@@ -91,16 +110,23 @@ i386_init(void)
 	lapic_init();
 #endif
 
+
 	// Lab 4 multitasking initialization functions
 	pic_init();
+
 #ifndef VMM_GUEST  // Does not work in guest mode
 	// Lab 6 hardware initialization functions
 	time_init();
 	pci_init();
 #endif 
 
+
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
+
+	lock_kernel();
+
+
 
 #ifndef VMM_GUEST
 	// Starting non-boot CPUs
@@ -110,27 +136,40 @@ i386_init(void)
 
 
 
+
+
+
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS);
+
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
 	// Touch all you want.
+
 #if defined(TEST_EPT_MAP)
 	test_ept_map();
 #endif
 
+
+
 	ENV_CREATE(user_icode, ENV_TYPE_USER);
+
 #endif // TEST*
+
 
 	// Should not be necessary - drains keyboard because interrupt has given up.
 	kbd_intr();
 
+
+
 	// Schedule and run the first user environment!
 	sched_yield();
+
 }
+
 
 // While boot_aps is booting a given CPU, it communicates the per-core
 // stack pointer that should be loaded by mpentry.S to that CPU in
@@ -182,9 +221,11 @@ mp_main(void)
 	//
 	// Your code here:
 
-	// Remove this after you finish Exercise 4
-	for (;;);
+	lock_kernel();
+	sched_yield();     // start running processes
+
 }
+
 
 
 /*
@@ -210,7 +251,9 @@ _panic(const char *file, int line, const char *fmt,...)
 	__asm __volatile("cli; cld");
 
 	va_start(ap, fmt);
+
 	cprintf("kernel panic on CPU %d at %s:%d: ", cpunum(), file, line);
+
 	vcprintf(fmt, ap);
 	cprintf("\n");
 	va_end(ap);

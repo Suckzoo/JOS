@@ -1,13 +1,18 @@
+
 /* See COPYRIGHT for copyright information. */
 
 #ifndef JOS_KERN_ENV_H
 #define JOS_KERN_ENV_H
 
 #include <inc/env.h>
+
 #include <kern/cpu.h>
 
+
 extern struct Env *envs;		// All environments
+
 #define curenv (thiscpu->cpu_env)		// Current environment
+
 extern struct Segdesc gdt[];
 
 void	env_init(void);
@@ -22,11 +27,14 @@ int	envid2env(envid_t envid, struct Env **env_store, bool checkperm);
 void	env_run(struct Env *e) __attribute__((noreturn));
 void	env_pop_tf(struct Trapframe *tf) __attribute__((noreturn));
 
+
 int env_guest_alloc(struct Env **newenv_store, envid_t parent_id);
+
 
 // Without this extra macro, we couldn't pass macros like TEST to
 // ENV_CREATE because of the C pre-processor's argument prescan rule.
 #define ENV_PASTE3(x, y, z) x ## y ## z
+
 
 #ifndef VMM_GUEST
 #define ENV_CREATE(x, type)						\
@@ -43,5 +51,6 @@ int env_guest_alloc(struct Env **newenv_store, envid_t parent_id);
 			   type);					\
 	} while (0)
 #endif //!VMM_GUEST
+
 
 #endif // !JOS_KERN_ENV_H

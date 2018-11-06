@@ -1,3 +1,4 @@
+
 #include <inc/x86.h>
 #include <inc/lib.h>
 
@@ -33,6 +34,7 @@ umain(int argc, char **argv)
 		panic("read in parent got %d, then got %d", n, n2);
 	cprintf("read in parent succeeded\n");
 	close(fd);
+
 
 	breakpoint();
 }

@@ -1,4 +1,5 @@
 
+
 #include <vmm/vmx.h>
 #include <vmm/vmx_asm.h>
 #include <vmm/ept.h>
@@ -61,7 +62,9 @@ bool vmx_check_support() {
 	uint32_t eax, ebx, ecx, edx;
 	cpuid( 1, &eax, &ebx, &ecx, &edx );
 	/* Your code here */ 
+
 	panic ("vmx check not implemented\n");
+
 	cprintf("[VMM] VMX extension not supported.\n");
 	return false;
 }
@@ -81,7 +84,9 @@ bool vmx_check_support() {
  */
 bool vmx_check_ept() {
 	/* Your code here */
+
 	panic ("ept check not implemented\n");
+
 	cprintf("[VMM] EPT extension not supported.\n");
 	return false;
 }
@@ -288,7 +293,9 @@ void vmcs_guest_init() {
 
 	vmcs_write64( VMCS_GUEST_CR3, 0 );
 	vmcs_write64( VMCS_GUEST_CR0, CR0_NE );
+
 	vmcs_write64( VMCS_GUEST_CR4, CR4_VMXE );
+
 	vmcs_write64( VMCS_64BIT_GUEST_LINK_POINTER, 0xffffffff );
 	vmcs_write64( VMCS_64BIT_GUEST_LINK_POINTER_HI, 0xffffffff ); 
 	vmcs_write64( VMCS_GUEST_DR7, 0x0 );
@@ -411,6 +418,7 @@ void vmexit() {
 	// Get the reason for VMEXIT from the VMCS.
 	// Your code here.
 
+
 	//cprintf( "---VMEXIT Reason: %d---\n", exit_reason ); 
 	/* vmcs_dump_cpu(); */
 	
@@ -437,11 +445,12 @@ void vmexit() {
         case EXIT_REASON_CPUID:
 		exit_handled = handle_cpuid(&curenv->env_tf, &curenv->env_vmxinfo);
 		break;
-        case EXIT_REASON_VMCALL:
-		exit_handled = handle_vmcall(&curenv->env_tf, &curenv->env_vmxinfo,
-					     curenv->env_pml4e);
+				case EXIT_REASON_VMCALL:
+					exit_handled = handle_vmcall(&curenv->env_tf, &curenv->env_vmxinfo,
+				curenv->env_pml4e);
 		break;
-        case EXIT_REASON_HLT:
+
+				case EXIT_REASON_HLT:
 		cprintf("\nHLT in guest, exiting guest.\n");
 		env_destroy(curenv);
 		exit_handled = true;
@@ -472,6 +481,7 @@ void asm_vmrun(struct Trapframe *tf) {
 		"push %%rcx \n\t"
 		/* Set the VMCS rsp to the current top of the frame. */
 		/* Your code here */
+
 		"1: \n\t"
 		/* Reload cr2 if changed */
 		"mov %c[cr2](%0), %%rax \n\t"
@@ -490,10 +500,12 @@ void asm_vmrun(struct Trapframe *tf) {
 		 *       to simplify the pointer arithmetic.
 		 */
 		/* Your code here */
+
 		/* Load guest general purpose registers from the trap frame.  Don't clobber flags. 
 		 *
 		 */
 		/* Your code here */
+
 		/* Enter guest mode */
 		/* Your code here:
 		 * 
@@ -505,6 +517,7 @@ void asm_vmrun(struct Trapframe *tf) {
 		 * that you don't do any compareison that would clobber the condition code, set
 		 * above.
 		 */
+
 		".Lvmx_return: "
 
 		/* POST VM EXIT... */
@@ -515,6 +528,7 @@ void asm_vmrun(struct Trapframe *tf) {
 		 * Be careful that the number of pushes (above) and pops are symmetrical.
 		 */
 		/* Your code here */
+
 		"pop  %%rbp; pop  %%rdx \n\t"
 
 		"setbe %c[fail](%0) \n\t"
@@ -573,7 +587,9 @@ msr_setup(struct VmxGuestInfo *ginfo) {
 
 void
 bitmap_setup(struct VmxGuestInfo *ginfo) {
+
 	unsigned int io_ports[] = { IO_RTC, IO_RTC+1 };
+
 	int i, count = sizeof(io_ports) / sizeof(io_ports[0]);
     
 	for(i=0; i<count; ++i) {
@@ -632,7 +648,9 @@ int vmx_vmrun( struct Env *e ) {
 
 	vmcs_write64( VMCS_GUEST_RSP, curenv->env_tf.tf_rsp  );
 	vmcs_write64( VMCS_GUEST_RIP, curenv->env_tf.tf_rip );
+
 	panic ("asm vmrun incomplete\n");
+
 	asm_vmrun( &e->env_tf );    
 	return 0;
 }
