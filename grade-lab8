@@ -7,7 +7,7 @@ r = Runner(save("jos.out"),
 
 def matchtest(parent, name, points, *args, **kw):
     def do_test():
-        r.match(*args, **kw)
+        r.match(*args, no=[".*panic"])
     test(points, name, parent=parent)(do_test)
 
 @test(0, "VMM Tests")

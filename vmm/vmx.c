@@ -384,7 +384,9 @@ vmcs_ctls_init( struct Env* e ) {
 		      entry_ctls_or & entry_ctls_and );
     
 	uint64_t ept_ptr = e->env_cr3 | ( ( EPT_LEVELS - 1 ) << 3 );
-	vmcs_write64( VMCS_64BIT_CONTROL_EPTPTR, ept_ptr );
+	vmcs_write64( VMCS_64BIT_CONTROL_EPTPTR, ept_ptr 
+            | VMX_EPT_DEFAULT_MT
+            | (VMX_EPT_DEFAULT_GAW << VMX_EPT_GAW_EPTP_SHIFT) );
 
 	vmcs_write32( VMCS_32BIT_CONTROL_EXCEPTION_BITMAP, 
 		      e->env_vmxinfo.exception_bmap);
@@ -395,6 +397,8 @@ vmcs_ctls_init( struct Env* e ) {
 
 }
 
+/*
+//old dump function
 void vmcs_dump_cpu() {
 	uint64_t flags = vmcs_readl(VMCS_GUEST_RFLAGS);
 
@@ -408,7 +412,179 @@ void vmcs_dump_cpu() {
 		 vmcs_read64( VMCS_GUEST_CR4 ) );
 
 	cprintf( "vmx: --- End VCPU Dump ---\n");
+}
+*/
 
+static void vmx_dump_sel(char *name, uint32_t sel)
+{
+	cprintf("%s sel=0x%04x, attr=0x%05x, limit=0x%08x, base=0x%016lx\n",
+			name, vmcs_read16(sel),
+			vmcs_read32(sel + VMCS_32BIT_GUEST_ES_ACCESS_RIGHTS - VMCS_16BIT_GUEST_ES_SELECTOR ),
+			vmcs_read32(sel + VMCS_32BIT_GUEST_ES_LIMIT - VMCS_16BIT_GUEST_ES_SELECTOR),
+			vmcs_readl(sel + VMCS_GUEST_ES_BASE - VMCS_16BIT_GUEST_ES_SELECTOR));
+}
+
+static void vmx_dump_dtsel(char *name, uint32_t limit)
+{
+	cprintf("%slimit=0x%08x, base=0x%016lx\n",
+			name, vmcs_read32(limit),
+			vmcs_readl(limit + VMCS_GUEST_GDTR_BASE - VMCS_32BIT_GUEST_GDTR_LIMIT));
+}
+
+void vmcs_dump_cpu()
+{
+	uint32_t vmentry_ctl = vmcs_read32(VMCS_32BIT_CONTROL_VMENTRY_CONTROLS);
+	uint32_t vmexit_ctl = vmcs_read32(VMCS_32BIT_CONTROL_VMEXIT_CONTROLS);
+	uint32_t cpu_based_exec_ctrl = vmcs_read32(VMCS_32BIT_CONTROL_PROCESSOR_BASED_VMEXEC_CONTROLS);
+	uint32_t pin_based_exec_ctrl = vmcs_read32(VMCS_32BIT_CONTROL_PIN_BASED_EXEC_CONTROLS);
+	uint32_t secondary_exec_control = 0;
+	unsigned long cr4 = vmcs_readl(VMCS_GUEST_CR4);
+	uint64_t efer = vmcs_read64(VMCS_64BIT_GUEST_IA32_EFER);
+	int i, n;
+
+	secondary_exec_control = vmcs_read32(VMCS_32BIT_CONTROL_SECONDARY_VMEXEC_CONTROLS);
+
+	cprintf("\n*** Guest State ***\n");
+	cprintf("CR0: actual=0x%016lx, shadow=0x%016lx, gh_mask=%016lx\n",
+			vmcs_readl(VMCS_GUEST_CR0), vmcs_readl(VMCS_CONTROL_CR0_READ_SHADOW),
+			vmcs_readl(VMCS_CONTROL_CR0_GUEST_HOST_MASK));
+	cprintf("CR4: actual=0x%016lx, shadow=0x%016lx, gh_mask=%016lx\n",
+			cr4, vmcs_readl(VMCS_CONTROL_CR4_READ_SHADOW), vmcs_readl(VMCS_CONTROL_CR4_GUEST_HOST_MASK));
+	cprintf("CR3 = 0x%016lx\n", vmcs_readl(VMCS_GUEST_CR3));
+	cprintf("RSP = 0x%016lx  RIP = 0x%016lx\n",
+			vmcs_readl(VMCS_GUEST_RSP), vmcs_readl(VMCS_GUEST_RIP));
+	cprintf("RFLAGS=0x%08lx         DR7 = 0x%016lx\n",
+			vmcs_readl(VMCS_GUEST_RFLAGS), vmcs_readl(VMCS_GUEST_DR7));
+	cprintf("Sysenter RSP=%016lx CS:RIP=%04x:%016lx\n",
+			vmcs_readl(VMCS_GUEST_IA32_SYSENTER_ESP_MSR),
+			vmcs_read32(VMCS_32BIT_GUEST_IA32_SYSENTER_CS_MSR), vmcs_readl(VMCS_GUEST_IA32_SYSENTER_EIP_MSR));
+	vmx_dump_sel("CS:  ", VMCS_16BIT_GUEST_CS_SELECTOR);
+	vmx_dump_sel("DS:  ", VMCS_16BIT_GUEST_DS_SELECTOR);
+	vmx_dump_sel("SS:  ", VMCS_16BIT_GUEST_SS_SELECTOR);
+	vmx_dump_sel("ES:  ", VMCS_16BIT_GUEST_ES_SELECTOR);
+	vmx_dump_sel("FS:  ", VMCS_16BIT_GUEST_FS_SELECTOR);
+	vmx_dump_sel("GS:  ", VMCS_16BIT_GUEST_GS_SELECTOR);
+	vmx_dump_dtsel("GDTR:", VMCS_32BIT_GUEST_GDTR_LIMIT);
+	vmx_dump_sel("LDTR:", VMCS_16BIT_GUEST_LDTR_SELECTOR);                                                                                                                                                      vmx_dump_dtsel("IDTR:", VMCS_32BIT_GUEST_IDTR_LIMIT);
+	vmx_dump_sel("TR:  ", VMCS_16BIT_GUEST_TR_SELECTOR);
+	if ((vmexit_ctl & (0x0040000 | 0x0010000)) ||
+			(vmentry_ctl & (0x00004000 | 0x00008000)))
+		cprintf("EFER =     0x%016llx  PAT = 0x%016llx\n",
+				efer, vmcs_read64(VMCS_64BIT_GUEST_IA32_PAT));
+	cprintf("DebugCtl = 0x%016llx  DebugExceptions = 0x%016lx\n",
+			vmcs_read64(VMCS_64BIT_GUEST_IA32_DEBUGCTL),
+			vmcs_readl(VMCS_GUEST_PENDING_DBG_EXCEPTIONS));
+	if(vmentry_ctl & 0x000100000)
+		cprintf("BndCfgS = 0x%016llx\n", vmcs_read64(0x00002812));
+	cprintf("Interruptibility = %08x  ActivityState = %08x\n",
+			vmcs_read32(VMCS_32BIT_GUEST_INTERRUPTIBILITY_STATE),
+			vmcs_read32(VMCS_32BIT_GUEST_ACTIVITY_STATE));
+	if (secondary_exec_control & 0x00000200)
+		cprintf("InterruptStatus = %04x\n",
+				vmcs_read16(VMCS_16BIT_GUEST_INTERRUPT_STATUS));
+
+	cprintf("\n*** Host State ***\n");
+	cprintf("RIP = 0x%016lx  RSP = 0x%016lx\n",
+			vmcs_readl(VMCS_HOST_RIP), vmcs_readl(VMCS_HOST_RSP));
+	cprintf("CS=%04x SS=%04x DS=%04x ES=%04x FS=%04x GS=%04x TR=%04x\n",
+			vmcs_read16(VMCS_16BIT_HOST_CS_SELECTOR), vmcs_read16(VMCS_16BIT_HOST_SS_SELECTOR),
+			vmcs_read16(VMCS_16BIT_HOST_DS_SELECTOR), vmcs_read16(VMCS_16BIT_HOST_ES_SELECTOR),
+			vmcs_read16(VMCS_16BIT_HOST_FS_SELECTOR), vmcs_read16(VMCS_16BIT_HOST_GS_SELECTOR),
+			vmcs_read16(VMCS_16BIT_HOST_TR_SELECTOR));
+	cprintf("FSBase=%016lx GSBase=%016lx TRBase=%016lx\n",
+			vmcs_readl(VMCS_HOST_FS_BASE), vmcs_readl(VMCS_HOST_GS_BASE),
+			vmcs_readl(VMCS_HOST_TR_BASE));
+	cprintf("GDTBase=%016lx IDTBase=%016lx\n",
+			vmcs_readl(VMCS_HOST_GDTR_BASE), vmcs_readl(VMCS_HOST_IDTR_BASE));
+	cprintf("CR0=%016lx CR3=%016lx CR4=%016lx\n",
+			vmcs_readl(VMCS_HOST_CR0), vmcs_readl(VMCS_HOST_CR3),
+			vmcs_readl(VMCS_HOST_CR4));
+	cprintf("Sysenter RSP=%016lx CS:RIP=%04x:%016lx\n",
+			vmcs_readl (VMCS_HOST_IA32_SYSENTER_ESP_MSR),
+			vmcs_read32(VMCS_32BIT_HOST_IA32_SYSENTER_CS_MSR),
+			vmcs_readl (VMCS_HOST_IA32_SYSENTER_EIP_MSR));
+	if (vmexit_ctl & (0x00080000 | 0x00200000))
+		cprintf("EFER = 0x%016llx  PAT = 0x%016llx\n",
+				vmcs_read64(VMCS_64BIT_HOST_IA32_EFER),
+				vmcs_read64(VMCS_64BIT_HOST_IA32_PAT));
+
+	cprintf("\n*** Control State ***\n");
+	cprintf("PinBased=%08x CPUBased=%08x SecondaryExec=%08x\n",
+			pin_based_exec_ctrl, cpu_based_exec_ctrl, secondary_exec_control);
+	cprintf("EntryControls=%08x ExitControls=%08x\n", vmentry_ctl, vmexit_ctl);
+	cprintf("ExceptionBitmap=%08x PFECmask=%08x PFECmatch=%08x\n",
+			vmcs_read32(VMCS_32BIT_CONTROL_EXCEPTION_BITMAP),
+			vmcs_read32(VMCS_32BIT_CONTROL_PAGE_FAULT_ERR_CODE_MASK),
+			vmcs_read32(VMCS_32BIT_CONTROL_PAGE_FAULT_ERR_CODE_MATCH));
+	cprintf("VMEntry: intr_info=%08x errcode=%08x ilen=%08x\n",
+			vmcs_read32(VMCS_32BIT_CONTROL_VMENTRY_INTERRUPTION_INFO),
+			vmcs_read32(VMCS_32BIT_CONTROL_VMENTRY_EXCEPTION_ERR_CODE),
+			vmcs_read32(VMCS_32BIT_CONTROL_VMENTRY_INSTRUCTION_LENGTH));
+	cprintf("VMExit: intr_info=%08x errcode=%08x ilen=%08x\n",
+			vmcs_read32(VMCS_32BIT_VMEXIT_INTERRUPTION_INFO),
+			vmcs_read32(VMCS_32BIT_VMEXIT_INTERRUPTION_ERR_CODE),
+			vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH));
+	cprintf("        reason=%08x qualification=%016lx\n",
+			vmcs_read32(VMCS_32BIT_VMEXIT_REASON), vmcs_readl(VMCS_VMEXIT_QUALIFICATION));
+	if ((vmexit_ctl & (0x0040000 | 0x0010000)) ||
+			(vmentry_ctl & (0x00004000 | 0x00008000)))
+		cprintf("EFER =     0x%016llx  PAT = 0x%016llx\n",
+				efer, vmcs_read64(VMCS_64BIT_GUEST_IA32_PAT));
+	cprintf("DebugCtl = 0x%016llx  DebugExceptions = 0x%016lx\n",
+			vmcs_read64(VMCS_64BIT_GUEST_IA32_DEBUGCTL),
+			vmcs_readl(VMCS_GUEST_PENDING_DBG_EXCEPTIONS));
+	if(vmentry_ctl & 0x000100000)
+		cprintf("BndCfgS = 0x%016llx\n", vmcs_read64(0x00002812));
+	cprintf("Interruptibility = %08x  ActivityState = %08x\n",
+			vmcs_read32(VMCS_32BIT_GUEST_INTERRUPTIBILITY_STATE),
+			vmcs_read32(VMCS_32BIT_GUEST_ACTIVITY_STATE));
+	if (secondary_exec_control & 0x00000200)
+		cprintf("InterruptStatus = %04x\n",
+				vmcs_read16(VMCS_16BIT_GUEST_INTERRUPT_STATUS));
+
+	cprintf("\n*** Host State ***\n");
+	cprintf("RIP = 0x%016lx  RSP = 0x%016lx\n",
+			vmcs_readl(VMCS_HOST_RIP), vmcs_readl(VMCS_HOST_RSP));
+	cprintf("CS=%04x SS=%04x DS=%04x ES=%04x FS=%04x GS=%04x TR=%04x\n",
+			vmcs_read16(VMCS_16BIT_HOST_CS_SELECTOR), vmcs_read16(VMCS_16BIT_HOST_SS_SELECTOR),
+			vmcs_read16(VMCS_16BIT_HOST_DS_SELECTOR), vmcs_read16(VMCS_16BIT_HOST_ES_SELECTOR),
+			vmcs_read16(VMCS_16BIT_HOST_FS_SELECTOR), vmcs_read16(VMCS_16BIT_HOST_GS_SELECTOR),
+			vmcs_read16(VMCS_16BIT_HOST_TR_SELECTOR));
+	cprintf("FSBase=%016lx GSBase=%016lx TRBase=%016lx\n",
+			vmcs_readl(VMCS_HOST_FS_BASE), vmcs_readl(VMCS_HOST_GS_BASE),
+			vmcs_readl(VMCS_HOST_TR_BASE));
+	cprintf("GDTBase=%016lx IDTBase=%016lx\n",
+			vmcs_readl(VMCS_HOST_GDTR_BASE), vmcs_readl(VMCS_HOST_IDTR_BASE));
+	cprintf("CR0=%016lx CR3=%016lx CR4=%016lx\n",
+			vmcs_readl(VMCS_HOST_CR0), vmcs_readl(VMCS_HOST_CR3),
+			vmcs_readl(VMCS_HOST_CR4));
+	cprintf("Sysenter RSP=%016lx CS:RIP=%04x:%016lx\n",
+			vmcs_readl (VMCS_HOST_IA32_SYSENTER_ESP_MSR),
+			vmcs_read32(VMCS_32BIT_HOST_IA32_SYSENTER_CS_MSR),
+			vmcs_readl (VMCS_HOST_IA32_SYSENTER_EIP_MSR));
+	if (vmexit_ctl & (0x00080000 | 0x00200000))
+		cprintf("EFER = 0x%016llx  PAT = 0x%016llx\n",
+				vmcs_read64(VMCS_64BIT_HOST_IA32_EFER),
+				vmcs_read64(VMCS_64BIT_HOST_IA32_PAT));
+
+	cprintf("\n*** Control State ***\n");
+	cprintf("PinBased=%08x CPUBased=%08x SecondaryExec=%08x\n",
+			pin_based_exec_ctrl, cpu_based_exec_ctrl, secondary_exec_control);
+	cprintf("EntryControls=%08x ExitControls=%08x\n", vmentry_ctl, vmexit_ctl);
+	cprintf("ExceptionBitmap=%08x PFECmask=%08x PFECmatch=%08x\n",
+			vmcs_read32(VMCS_32BIT_CONTROL_EXCEPTION_BITMAP),
+			vmcs_read32(VMCS_32BIT_CONTROL_PAGE_FAULT_ERR_CODE_MASK),
+			vmcs_read32(VMCS_32BIT_CONTROL_PAGE_FAULT_ERR_CODE_MATCH));
+	cprintf("VMEntry: intr_info=%08x errcode=%08x ilen=%08x\n",
+			vmcs_read32(VMCS_32BIT_CONTROL_VMENTRY_INTERRUPTION_INFO),
+			vmcs_read32(VMCS_32BIT_CONTROL_VMENTRY_EXCEPTION_ERR_CODE),
+			vmcs_read32(VMCS_32BIT_CONTROL_VMENTRY_INSTRUCTION_LENGTH));
+	cprintf("VMExit: intr_info=%08x errcode=%08x ilen=%08x\n",
+			vmcs_read32(VMCS_32BIT_VMEXIT_INTERRUPTION_INFO),
+			vmcs_read32(VMCS_32BIT_VMEXIT_INTERRUPTION_ERR_CODE),
+			vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH));
+	cprintf("        reason=%08x qualification=%016lx\n",
+			vmcs_read32(VMCS_32BIT_VMEXIT_REASON), vmcs_readl(VMCS_VMEXIT_QUALIFICATION));
 }
 
 void vmexit() {

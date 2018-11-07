@@ -567,5 +567,25 @@ static __inline uint64_t vmcs_read64(uint32_t field)
 #define VMEXIT_NPF			0x400
 #define VMEXIT_INVALID			-1
 
+#define VMX_EPT_DEFAULT_GAW                     3
+#define VMX_EPT_MAX_GAW                         0x4
+#define VMX_EPT_MT_EPTE_SHIFT                   3
+#define VMX_EPT_GAW_EPTP_SHIFT                  3
+#define VMX_EPT_AD_ENABLE_BIT                   (1ull << 6)
+#define VMX_EPT_DEFAULT_MT                      0x6ull
+#define VMX_EPT_READABLE_MASK                   0x1ull
+#define VMX_EPT_WRITABLE_MASK                   0x2ull
+#define VMX_EPT_EXECUTABLE_MASK                 0x4ull
+#define VMX_EPT_IPAT_BIT                        (1ull << 6)
+#define VMX_EPT_ACCESS_BIT                      (1ull << 8)
+#define VMX_EPT_DIRTY_BIT                       (1ull << 9)
+#define VMX_EPT_RWX_MASK                        (VMX_EPT_READABLE_MASK |        \
+        VMX_EPT_WRITABLE_MASK |        \
+        VMX_EPT_EXECUTABLE_MASK)
+#define VMX_EPT_MT_MASK                         (7ull << VMX_EPT_MT_EPTE_SHIFT)
+
+/* The mask to use to trigger an EPT Misconfiguration in order to track MMIO */
+#define VMX_EPT_MISCONFIG_WX_VALUE              (VMX_EPT_WRITABLE_MASK |        \
+        VMX_EPT_EXECUTABLE_MASK)
 #endif
 
