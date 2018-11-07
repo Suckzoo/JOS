@@ -1,5 +1,3 @@
-
-
 #include <vmm/vmx.h>
 #include <vmm/vmx_asm.h>
 #include <vmm/ept.h>
@@ -62,8 +60,8 @@ bool vmx_check_support() {
 	uint32_t eax, ebx, ecx, edx;
 	cpuid( 1, &eax, &ebx, &ecx, &edx );
 	/* Your code here */ 
-
-	panic ("vmx check not implemented\n");
+	
+	if (BIT(ecx, 5)) return true;
 
 	cprintf("[VMM] VMX extension not supported.\n");
 	return false;
@@ -84,8 +82,9 @@ bool vmx_check_support() {
  */
 bool vmx_check_ept() {
 	/* Your code here */
-
-	panic ("ept check not implemented\n");
+	uint64_t msr;
+	msr = read_msr( IA32_VMX_PROCBASED_CTLS2 );
+	if (BIT(msr, 1)) return true;
 
 	cprintf("[VMM] EPT extension not supported.\n");
 	return false;
