@@ -50,10 +50,20 @@ static int ept_lookup_gpa(epte_t* eptrt, void *gpa,
 			  int create, epte_t **epte_out) {
     /* Your code here */
 
-    panic("ept_lookup_gpa not implemented\n");
+		if (!eptrt) return -E_INVAL;
+		assert (ROUNDDOWN(eptrt, PGSIZE) == eptrt);
 
-    return 0;
+		// get pml4e from eptrt
+		pml4e_t *pml4e = (pml4e_t*)eptrt;
 
+		pte_t *pte = pml4e_walk(pml4e, gpa, create);
+		if (!create && !pte) return -E_NO_ENT;
+		if (create && !pte) return -E_NO_MEM;
+
+		if (epte_out) {
+			*epte_out = (epte_t*)pte;
+		}
+		return 0;
 }
 
 void ept_gpa2hva(epte_t* eptrt, void *gpa, void **hva) {
@@ -112,9 +122,22 @@ void free_guest_mem(epte_t* eptrt) {
 int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 
     /* Your code here */
-
-    panic("ept_page_insert not implemented\n");
-
+		// int r = ept_lookup_gpa((pml4e_t*)eptrt, pp, gpa, perm);
+		cprintf("ept_page_insert\n");
+		epte_t *epte;
+		assert(gpa != NULL);
+		cprintf("lookup gpa %x\n", gpa);
+		int r = ept_lookup_gpa(eptrt, gpa, 1, &epte);
+		if (epte == NULL) return -E_NO_MEM;
+		if (r < 0) return r;
+		cprintf("existency check %x\n", epte);
+		if (*epte & PTE_P) {
+			page_remove((pml4e_t*)eptrt, gpa);
+		}
+		cprintf("inc ref\n");
+		pp->pp_ref++;
+		cprintf("put\n");
+		*epte = page2pa(pp) | PTE_P | perm;
     return 0;
 }
 
@@ -132,12 +155,19 @@ int ept_page_insert(epte_t* eptrt, struct PageInfo* pp, void* gpa, int perm) {
 //       You should set the type to EPTE_TYPE_WB and set __EPTE_IPAT flag.
 int ept_map_hva2gpa(epte_t* eptrt, void* hva, void* gpa, int perm, 
         int overwrite) {
-
     /* Your code here */
-
-    panic("ept_map_hva2gpa not implemented\n");
-
-
+		assert (ROUNDDOWN((uintptr_t)hva, PGSIZE) == (uintptr_t)hva);
+		assert (ROUNDDOWN((uintptr_t)gpa, PGSIZE) == (uintptr_t)gpa);
+		epte_t *epte;
+		int r = ept_lookup_gpa(eptrt, gpa, 1, &epte);
+		if (r < 0) {
+			return -r;
+		}
+		if (!overwrite && *epte) {
+			return -E_INVAL;
+		}
+		physaddr_t hpa = PADDR((uintptr_t)hva);
+		*epte = hpa | perm | __EPTE_TYPE(EPTE_TYPE_WB) | __EPTE_IPAT;
     return 0;
 }
 
@@ -227,6 +257,8 @@ int test_ept_map(void)
 		panic("sys_ept_map success on write perm\n");
 	
 	pp_ref = pp->pp_ref;	
+	cprintf("Targeting page is: %x\n", pp);
+	cprintf("Previous pp_ref is: %d\n", pp_ref);
 	/* Check if the sys_ept_map can succeed on correct setup */
 	if ((r = _export_sys_ept_map(srcenv->env_id, UTEMP, dstenv->env_id, UTEMP, __EPTE_READ)) < 0)
 		panic("Failed to do sys_ept_map (%d)\n", r);

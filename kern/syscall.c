@@ -525,10 +525,41 @@ static int
 sys_ept_map(envid_t srcenvid, void *srcva,
 	    envid_t guest, void* guest_pa, int perm)
 {
-
 		/* Your code here */
-		panic ("sys_ept_map not implemented");
+		struct Env *e_src;
+		struct Env *e_guest;
 
+		// return -E_BAD_ENV if envs do not exist / env does not have permission
+		int r = envid2env(srcenvid, &e_src, true);
+		if (r < 0) return -E_BAD_ENV;
+		r = envid2env(guest, &e_guest, true);
+		if (r < 0) return -E_BAD_ENV;
+		if (e_guest->env_parent_id != srcenvid) return -E_BAD_ENV;
+		if (e_guest->env_type != ENV_TYPE_GUEST) return -E_BAD_ENV;
+
+		// return -E_INVAL if srcva >= UTOP
+		if ((uintptr_t)srcva >= UTOP) return -E_INVAL;
+		// srcva should be page-aligned
+		if (ROUNDDOWN((uintptr_t)srcva, PGSIZE) != (uintptr_t)srcva) return -E_INVAL;
+		// guest pa must be in its physical size
+		if ((uintptr_t)guest_pa >= e_guest->env_vmxinfo.phys_sz) return -E_INVAL;
+		// guest pa must be page-aligned
+		if (ROUNDDOWN((uintptr_t)guest_pa, PGSIZE) != (uintptr_t)guest_pa) return -E_INVAL;
+		// srcva must be mapped in src_pml4e
+		pte_t *pte;
+		struct PageInfo *pp_src = page_lookup(e_src->env_pml4e, srcva, &pte);
+		if (!pp_src) return -E_INVAL;
+		// inappropriate perm?
+		if (!(perm & __EPTE_FULL)) return -E_INVAL;
+		// What if we want to write on read-only page?
+		if (!((uintptr_t)pte & PTE_W) && (perm & PTE_W)) return -E_INVAL;
+		// Map it!
+		void *kva_src = page2kva(pp_src);
+		r = ept_map_hva2gpa(e_guest->env_pml4e, kva_src, guest_pa, perm, 0);
+		// If error, return it.
+		if (r < 0) return r;
+		// add refcnt of hva
+		pp_src->pp_ref++;
 		return 0;
 }
 

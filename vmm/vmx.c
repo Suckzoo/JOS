@@ -83,9 +83,11 @@ bool vmx_check_support() {
 bool vmx_check_ept() {
 	/* Your code here */
 	uint64_t msr;
-	msr = read_msr( IA32_VMX_PROCBASED_CTLS2 );
-	if (BIT(msr, 1)) return true;
-
+	msr = read_msr( IA32_VMX_PROCBASED_CTLS );
+	if (BIT(msr, 63)) {
+		msr = read_msr( IA32_VMX_PROCBASED_CTLS2 );
+		if (BIT(msr, 33)) return true;
+	}
 	cprintf("[VMM] EPT extension not supported.\n");
 	return false;
 }
