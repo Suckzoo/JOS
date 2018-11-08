@@ -253,6 +253,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	uint32_t val;
 	// phys address of the multiboot map in the guest.
 	uint64_t multiboot_map_addr = 0x6000;
+	memory_map_t mmap[3];
 	switch(tf->tf_regs.reg_rax) {
 	case VMX_VMCALL_MBMAP:
 		// Craft a multiboot (e820) memory map for the guest.
@@ -265,10 +266,48 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// Copy the mbinfo and memory_map_t (segment descriptions) into the guest page, and return
 		//   a pointer to this region in rbx (as a guest physical address).
 		/* Your code here */
+		// low mem
+		mmap[0].size = 20;
+		mmap[0].base_addr_low = 0;
+		mmap[0].base_addr_high = 0;
+		mmap[0].length_low = IOPHYSMEM;
+		mmap[0].length_high = 0;
+		mmap[0].type = MB_TYPE_USABLE;
 
-		cprintf("e820 map hypercall not implemented\n");	    
-		handled = false;
+		// io hole
+		mmap[1].size = 20;
+		mmap[1].base_addr_low = IOPHYSMEM;
+		mmap[1].base_addr_high = 0;
+		mmap[1].length_low = EXTPHYSMEM - IOPHYSMEM;
+		mmap[1].length_high = 0;
+		mmap[1].type = MB_TYPE_RESERVED;
 
+		// high mem
+		mmap[2].size = 20;
+		mmap[2].base_addr_low = EXTPHYSMEM;
+		mmap[2].base_addr_high = 0;
+		mmap[2].length_low = (uint32_t)((gInfo->phys_sz - EXTPHYSMEM) & (0xffffffff));
+		mmap[2].length_high = (uint32_t)(((gInfo->phys_sz - EXTPHYSMEM) >> 32) & (0xffffffff));
+		mmap[2].type = MB_TYPE_USABLE;
+
+		mbinfo.flags = MB_FLAG_MMAP;
+		mbinfo.mmap_addr = 0x6000 + sizeof(mbinfo);
+		mbinfo.mmap_length = sizeof(mmap);
+
+		struct PageInfo *pp = page_alloc(ALLOC_ZERO);
+		if (!pp) {
+			return false;
+		}
+		void *hva = page2kva(pp);
+		// map one & overwrite & explicit refcnt
+		ept_map_hva2gpa(eptrt, hva, (void*)0x6000, __EPTE_FULL, 1);
+		pp->pp_ref++;
+		// copy mbinfo and mmap into that page
+		memcpy(hva, (void*)&mbinfo, sizeof(mbinfo));
+		memcpy(hva + sizeof(mbinfo), (void*)mmap, sizeof(mmap));
+		// mbinfo is at 0x6000!
+		tf->tf_regs.reg_rbx = 0x6000;
+		handled = true;
 		break;
 	case VMX_VMCALL_IPCSEND:
 		// Issue the sys_ipc_send call to the host.
@@ -317,7 +356,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		 * Hint: The TA solution does not hard-code the length of the vmcall instruction.
 		 */
 		/* Your code here */
-
+		tf->tf_rip += vmcs_read64(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
 	}
 	return handled;
 }
