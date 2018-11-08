@@ -471,7 +471,10 @@ Failed to shutdown QEMU.  You might need to 'killall qemu' or
         maybe_unlink("obj/kern/init.o", "obj/kern/kernel")
         if kw.pop("snapshot", True):
             kw.setdefault("make_args", []).append("QEMUEXTRA+=-snapshot")
-        self.run_qemu(target_base="run-%s" % binary, *monitors, **kw)
+	if binary is "test_ept":
+            self.run_qemu(target_base="ept-test", *monitors, **kw)
+        else:
+            self.run_qemu(target_base="run-%s" % binary, *monitors, **kw)
 
     def match(self, *args, **kwargs):
         """Shortcut to call assert_lines_match on the most recent QEMU

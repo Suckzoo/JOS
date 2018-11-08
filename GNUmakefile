@@ -172,7 +172,7 @@ PORT7	:= $(shell expr $(GDBPORT) + 1)
 PORT80	:= $(shell expr $(GDBPORT) + 2)
 
 ## We need KVM for qemu to export VMX
-QEMUOPTS = -cpu host -enable-kvm -m 256 -hda $(OBJDIR)/kern/kernel.img -serial mon:stdio -gdb tcp::$(GDBPORT)
+QEMUOPTS = -cpu qemu64,+vmx -enable-kvm -m 256 -hda $(OBJDIR)/kern/kernel.img -serial mon:stdio -gdb tcp::$(GDBPORT)
 QEMUOPTS += $(shell if $(QEMU) -nographic -help | grep -q '^-D '; then echo '-D qemu.log'; fi)
 IMAGES = $(OBJDIR)/kern/kernel.img
 QEMUOPTS += -smp $(CPUS)
@@ -295,6 +295,16 @@ tarball: handin-check
 
 # For test runs
 prep-net_%: override INIT_CFLAGS+=-DTEST_NO_NS
+
+# For test ept
+build-ept-test: 
+	$(V)$(MAKE) "KERN_CFLAGS=${KERN_CFLAGS} -DTEST_EPT_MAP" $(IMAGES)
+
+ept-test-nox: build-ept-test pre-qemu
+	$(QEMU) -nographic $(QEMUOPTS)
+
+ept-test-nox-gdb: build-ept-test pre-qemu
+	$(QEMU) -nographic $(QEMUOPTS) -S
 
 prep-%:
 	$(V)$(MAKE) "INIT_CFLAGS=${INIT_CFLAGS} -DTEST=`case $* in *_*) echo $*;; *) echo user_$*;; esac`" $(IMAGES)
