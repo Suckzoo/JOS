@@ -552,7 +552,7 @@ sys_ept_map(envid_t srcenvid, void *srcva,
 		// inappropriate perm?
 		if (!(perm & __EPTE_FULL)) return -E_INVAL;
 		// What if we want to write on read-only page?
-		if (!((uintptr_t)pte & PTE_W) && (perm & PTE_W)) return -E_INVAL;
+		if (!((uintptr_t)(*pte) & PTE_W) && (perm & PTE_W)) return -E_INVAL;
 		// Map it!
 		void *kva_src = page2kva(pp_src);
 		r = ept_map_hva2gpa(e_guest->env_pml4e, kva_src, guest_pa, perm, 0);

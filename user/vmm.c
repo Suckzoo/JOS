@@ -9,6 +9,8 @@
 
 #define JOS_ENTRY 0x7000
 
+#define HANDLE_ERROR(ret) if ((ret) < 0) return (ret)
+
 // Map a region of file fd into the guest at guest physical address gpa.
 // The file region to map should start at fileoffset and be length filesz.
 // The region to map in the guest should be memsz.  The region can span multiple pages.
@@ -20,8 +22,41 @@ map_in_guest( envid_t guest, uintptr_t gpa, size_t memsz,
 	      int fd, size_t filesz, off_t fileoffset ) {
 	/* Your code here */
 
-	return -E_NO_SYS;
-
+	envid_t srcid = sys_getenvid();
+	size_t next_read = PGSIZE < filesz ? PGSIZE : filesz;
+	off_t next_offset = fileoffset;
+	int r;
+	int perm = PTE_P | PTE_U | PTE_W;
+	size_t total_map;
+	for(total_map = 0; total_map < memsz; total_map += PGSIZE) {
+		if (filesz > 0) {
+			r = sys_page_alloc(srcid, UTEMP, perm);
+			HANDLE_ERROR(r);
+			r = seek(fd, next_offset);
+			HANDLE_ERROR(r);
+			off_t pgoff = PGOFF(gpa);
+			size_t next_read = PGSIZE - pgoff < filesz ? PGSIZE - pgoff : filesz;
+			int n = readn(fd, UTEMP + pgoff, next_read);
+			HANDLE_ERROR(n);
+			r = sys_ept_map(srcid, UTEMP, guest, (void*)gpa - pgoff, perm);
+      HANDLE_ERROR(r);
+			filesz -= n;
+			gpa += PGSIZE - pgoff;
+			next_offset += next_read;
+			r = sys_page_unmap(srcid, UTEMP);
+			HANDLE_ERROR(r);
+		} else {
+			r = sys_page_alloc(srcid, UTEMP, __EPTE_FULL);
+			HANDLE_ERROR(r);
+			off_t pgoff = PGOFF(gpa);
+			r = sys_ept_map(srcid, UTEMP, guest, (void*)gpa - pgoff, __EPTE_FULL);
+			HANDLE_ERROR(r);
+			r = sys_page_unmap(srcid, UTEMP);
+			HANDLE_ERROR(r);
+			gpa += PGSIZE - pgoff;
+		}
+	}
+	return 0;
 } 
 
 // Read the ELF headers of kernel file specified by fname,
@@ -34,8 +69,38 @@ static int
 copy_guest_kern_gpa( envid_t guest, char* fname ) {
 
 	/* Your code here */
+	int r;
+	envid_t srcid = sys_getenvid();
+	int fd = open(fname, O_RDONLY);
+	HANDLE_ERROR(fd);
 
-	return -E_NO_SYS;
+	uint8_t binary[512];
+	r = readn(fd, binary, 512);
+	if (r < 0) {
+		close(fd);
+		return r;
+	}
+
+	struct Elf* elf = (struct Elf*)binary;
+	if (elf->e_magic != ELF_MAGIC) {
+		return -E_NOT_EXEC;
+	}
+
+	// Let's load kern elf!
+	struct Proghdr *ph, *eph;
+	ph  = (struct Proghdr *)((uint8_t *)elf + elf->e_phoff);
+	eph = ph + elf->e_phnum;
+	for(;ph < eph; ph++) {
+		if (ph->p_type == ELF_PROG_LOAD) {
+			r = map_in_guest(guest, ph->p_pa, ph->p_memsz, fd, ph->p_filesz, ph->p_offset);
+			if (r < 0) {
+				close(fd);
+				return r;
+			}
+		}
+	}
+	
+	return 0;
 }
 
 void
