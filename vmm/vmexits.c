@@ -121,7 +121,7 @@ handle_wrmsr(struct Trapframe *tf, struct VmxGuestInfo *ginfo) {
 		if(BIT(cur_val, EFER_LME) == 0 && BIT(new_val, EFER_LME) == 1) {
 			// Long mode enable.
 			uint32_t entry_ctls = vmcs_read32( VMCS_32BIT_CONTROL_VMENTRY_CONTROLS );
-			entry_ctls |= VMCS_VMENTRY_x64_GUEST;
+			// entry_ctls |= VMCS_VMENTRY_x64_GUEST;
 			vmcs_write32( VMCS_32BIT_CONTROL_VMENTRY_CONTROLS, 
 				      entry_ctls );
 
@@ -225,10 +225,19 @@ handle_cpuid(struct Trapframe *tf, struct VmxGuestInfo *ginfo)
 {
 	/* Your code here */
 
-	cprintf("Handle cpuid not implemented\n");
-	return false;
-
-
+	uint32_t eax, ebx, ecx, edx;
+	cpuid((uint32_t)tf->tf_regs.reg_rax, &eax, &ebx, &ecx, &edx);
+	if (tf->tf_regs.reg_rax == 1) {
+		//hide VMX technology
+		tf->tf_regs.reg_rcx = (uint64_t)(ecx & ~(0x20));
+	} else {
+		tf->tf_regs.reg_rcx = (uint64_t)ecx;
+	}
+	tf->tf_regs.reg_rax = (uint64_t)eax;
+	tf->tf_regs.reg_rbx = (uint64_t)ebx;
+	tf->tf_regs.reg_rdx = (uint64_t)edx;
+	tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+	return true;
 }
 
 
@@ -254,6 +263,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	// phys address of the multiboot map in the guest.
 	uint64_t multiboot_map_addr = 0x6000;
 	memory_map_t mmap[3];
+	struct Env *fs;
 	switch(tf->tf_regs.reg_rax) {
 	case VMX_VMCALL_MBMAP:
 		// Craft a multiboot (e820) memory map for the guest.
@@ -318,10 +328,22 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// The input should be a guest physical address; you will need to convert
 		//  this to a host virtual address for the IPC to work properly.
 		/* Your code here */
-
-		cprintf("IPC send hypercall not implemented\n");	    
-		handled = false;
-
+		to_env = tf->tf_regs.reg_rbx;
+		val = tf->tf_regs.reg_rcx;
+		perm = tf->tf_regs.reg_rsi;
+		gpa_pg = (void*)tf->tf_regs.reg_rdx;
+		if (to_env == VMX_HOST_FS_ENV && curenv->env_type == ENV_TYPE_GUEST) {
+			for (int i = 0; i < NENV; i++) {
+				if (envs[i].env_type == ENV_TYPE_FS) {
+					fs = &envs[i];
+					to_env = envs[i].env_id;
+					break;
+				}
+			}
+		}
+		ept_gpa2hva(eptrt, gpa_pg, &hva_pg);
+		syscall(SYS_ipc_try_send, to_env, val, (uint64_t)hva_pg, perm, 0);
+		handled = true;
 		break;
 
 	case VMX_VMCALL_IPCRECV:
@@ -329,10 +351,9 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		// NB: because recv can call schedule, clobbering the VMCS, 
 		// you should go ahead and increment rip before this call.
 		/* Your code here */
-
-		cprintf("IPC recv hypercall not implemented\n");	    
-		handled = false;
-
+		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+		tf->tf_regs.reg_rax = syscall(SYS_ipc_recv, tf->tf_regs.reg_rbx, 0, 0, 0, 0);
+		handled = true;
 		break;
 	case VMX_VMCALL_LAPICEOI:
 		lapic_eoi();
@@ -356,7 +377,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		 * Hint: The TA solution does not hard-code the length of the vmcall instruction.
 		 */
 		/* Your code here */
-		tf->tf_rip += vmcs_read64(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
+		tf->tf_rip += vmcs_read32(VMCS_32BIT_VMEXIT_INSTRUCTION_LENGTH);
 	}
 	return handled;
 }
