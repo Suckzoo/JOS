@@ -41,6 +41,7 @@ typedef int bool;
 #define FLAG_ROOT 0
 
 #define FLAG_VMM 4
+#define FLAG_JOCKER 5
 
 
 struct Dir
@@ -238,6 +239,9 @@ main(int argc, char **argv)
 	struct Dir vmm;
 	struct File *v;
 
+	struct Dir jocker;
+	struct File *j;
+
 	assert(BLKSIZE % sizeof(struct File) == 0);
 
 	if (argc < 3)
@@ -261,6 +265,8 @@ main(int argc, char **argv)
 	v = diradd(&root, FTYPE_DIR, "vmm");
 	startdir(v, &vmm);
 
+	j = diradd(&root, FTYPE_DIR, "jocker");
+	startdir(j, &jocker);
 
 	for (i = 3; i < argc; i++) {
 		if(strcmp("-b", argv[i]) == 0) {
@@ -269,11 +275,12 @@ main(int argc, char **argv)
 		} else if(strcmp("-sb", argv[i]) == 0) {
 			flag = FLAG_SBIN;
 			continue;
-
 		} else if(strcmp("-g", argv[i]) == 0) {
 			flag = FLAG_VMM;
 			continue;
-
+		} else if (strcmp("-j", argv[i]) == 0) {
+			flag = FLAG_JOCKER;
+			continue;
 		}
 
 		switch (flag){
@@ -286,11 +293,12 @@ main(int argc, char **argv)
 		case FLAG_SBIN:
 			writefile(&sbin, argv[i]);
 			break;
-
 		case FLAG_VMM:
 			writefile(&vmm, argv[i]);
 			break;
-
+		case FLAG_JOCKER:
+			writefile(&jocker, argv[i]);
+			break;
 		}
 	}
 	
@@ -298,6 +306,7 @@ main(int argc, char **argv)
 	finishdir(&sbin);
 
 	finishdir(&vmm);
+	finishdir(&jocker);
 
 	finishdir(&root);
 	finishdisk();

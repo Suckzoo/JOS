@@ -53,6 +53,9 @@ enum EnvType {
 
 	ENV_TYPE_GUEST,     // A VMM guest OS
 	ENV_TYPE_IDLE,
+	
+	ENV_TYPE_JOCKER, // A jocker manager
+	ENV_TYPE_CONTAINER // A container maintained by jocker
 
 };
 

@@ -48,6 +48,8 @@ FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
 			fs/testshell.key \
 			fs/testshell.sh
 
+FSCHROOTTXTFILES := jocker/shark
+
 ifndef GUEST_KERN
 GUESTKERNELS = $(GUESTDIR)/$(OBJDIR)/kern/kernel
 GUESTKERNELS += $(GUESTDIR)/$(OBJDIR)/boot/boot
@@ -88,9 +90,9 @@ $(OBJDIR)/fs/clean-fs.img: $(OBJDIR)/fs/fsformat $(FSIMGFILES)
 	$(V)mkdir -p $(@D)
 
 ifndef GUEST_KERN
-	$(V)$(OBJDIR)/fs/fsformat $(OBJDIR)/fs/clean-fs.img 4096  $(FSIMGTXTFILES) -b $(USERAPPS) -sb $(ROOTAPPS) -g $(GUESTKERNELS)
+	$(V)$(OBJDIR)/fs/fsformat $(OBJDIR)/fs/clean-fs.img 4096  $(FSIMGTXTFILES) -b $(USERAPPS) -sb $(ROOTAPPS) -g $(GUESTKERNELS) -j ${FSCHROOTTXTFILES}
 else
-	$(V)$(OBJDIR)/fs/fsformat $(OBJDIR)/fs/clean-fs.img 512 $(FSIMGTXTFILES) -b $(USERAPPS) -sb $(ROOTAPPS)
+	$(V)$(OBJDIR)/fs/fsformat $(OBJDIR)/fs/clean-fs.img 512 $(FSIMGTXTFILES) -b $(USERAPPS) -sb $(ROOTAPPS) -j ${FSCHROOTTXTFILES}
 endif
 
 $(OBJDIR)/fs/fs.img: $(OBJDIR)/fs/clean-fs.img

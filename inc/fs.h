@@ -72,7 +72,9 @@ enum {
 	FSREQ_FLUSH,
 	FSREQ_REMOVE,
 
-	FSREQ_SYNC
+	FSREQ_SYNC,
+
+	__BOUND_FSREQ
 
 };
 
