@@ -90,7 +90,6 @@ umain(int argc, char **argv)
 
 	// ipc_queue_init();
 	// redirect_table_init();
-	jocker_init();
 
 	serve();
 }
