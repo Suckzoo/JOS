@@ -72,7 +72,8 @@ KERN_BINFILES +=	user/testfile \
 			user/writemotd \
 			user/spawnhello \
 			user/icode \
-			fs/fs
+			fs/fs \
+			jocker/jocker
 
 # Binary files for LAB6
 KERN_BINFILES +=	user/testtime \
