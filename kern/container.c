@@ -1,35 +1,5 @@
-#include <inc/queue.h>
+#include <kern/container.h>
 
-#define CONTAINER_MAX_COUNT	5
-#define MESSAGE_QEUEUE_MAX_COUNT	10	
-#define CHROOT_LEN	20
-
-#define NO_CONT_ERR (-1)
-#define NO_IPC_ERR (-2)
-#define NO_ACTIVE_CONTAINER_ERR	(-3)
-
-struct ipc_entry {
-	int from;
-	int to;
-	int value;
-	void * srcva;
-
-	LIST_ENTRY(ipc_entry) link;
-};
-struct container_entry {
-	int cid;
-	int active;
-	char root_str[CHROOT_LEN];
-	int balance;
-
-	struct ipc_entry ipc_fronts[MESSAGE_QEUEUE_MAX_COUNT];
-	LIST_HEAD(ipc_free, ipc_entry) ipc_free;
-	LIST_HEAD(ipc_active, ipc_entry) ipc_active;
-	struct ipc_entry *ipc_backptr;
-	// do not require send back ipc processing, because it goes directly to the process
-
-    LIST_ENTRY(container_entry) link;
-};
 static int ipc_hold_cnt = 0;
 static struct container_entry conts[CONTAINER_MAX_COUNT];
 static LIST_HEAD(cont_free, container_entry) cont_free;
@@ -120,7 +90,30 @@ void process_ipc() {
 			ipc_hold_cnt--;
 				if(ipc_hold_cnt<1) {
 				//TODO: set sleep
+
+				// return need to be removed when sleep is implemented
+				return;
 			}
 		}
 	}
+}
+
+void test_container() {
+	init_container();
+	add_container("/test/1");
+	add_container("/test/2");
+	add_container("/test/3");
+	add_container("/test/4");
+	remove_container(2);
+	remove_container(2);
+	remove_container(3);
+	add_ipc(1, 2, 3, 1, (void *)0);
+	add_ipc(2, 2, 3, 2, (void *)0);
+	add_ipc(4, 2, 3, 3, (void *)0);
+	add_ipc(4, 2, 3, 4, (void *)0);
+	add_ipc(4, 2, 3, 5, (void *)0);
+	add_ipc(4, 2, 3, 6, (void *)0);
+	printf("%d\n", ipc_hold_cnt);
+	process_ipc();
+	return;
 }

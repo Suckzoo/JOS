@@ -24,6 +24,9 @@
 #include <kern/time.h>
 #include <kern/pci.h>
 
+// LAB 5
+#include <kern/container.h>
+
 #if defined(TEST_EPT_MAP)
 int test_ept_map(void);
 #endif
@@ -135,7 +138,8 @@ i386_init(void)
 
 
 
-
+	// LAB 5 TEST PURPOSE
+	test_container();
 
 
 
