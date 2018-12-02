@@ -135,15 +135,18 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 
 	if (debug)
 		cprintf("serve_open %08x %s 0x%x\n", envid, req->req_path, req->req_omode);
-	cprintf("serve_open %08x %s 0x%x\n", envid, req->req_path, req->req_omode);
 	// Copy in the path, making sure it's null-terminated
 	// LAB 5: lookup envid in container_queue, add chroot string
+	
+	// LAB 5
+	// I don't know why, but path variable is not cleared without explicit clearing
+	memset(path, 0, MAXPATHLEN);
+	// LAB 5
 	r = sys_getroot(envid, path);
 	if(r>=0)
 		rootLen = strlen(path);
-	memmove(&path[rootLen], &req->req_path[1], MAXPATHLEN - rootLen);
+	memmove(&path[rootLen], &req->req_path, MAXPATHLEN - rootLen);
 	path[MAXPATHLEN-1] = 0;
-	cprintf("path string : %s\n", path);
 
 	// Find an open file ID
 	if ((r = openfile_alloc(&o)) < 0) {
@@ -346,7 +349,7 @@ serve_remove(envid_t envid, struct Fsreq_remove *req)
 	r = sys_getroot(envid, path);
 	if(r>=0)
 		rootLen = strlen(path);
-	memmove(&path[rootLen], &req->req_path[1], MAXPATHLEN - rootLen);
+	memmove(&path[rootLen], &req->req_path, MAXPATHLEN - rootLen);
 	path[MAXPATHLEN-1] = 0;
 
 	// Delete the specified file

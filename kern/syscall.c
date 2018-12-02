@@ -588,7 +588,6 @@ static envid_t
 // LAB 5
 static int sys_getroot(envid_t envid, void *dst) {
 	struct Env * e;
-	cprintf("envid: %d\n",envid);
 	envid2env(envid, &e, 0);
 	if(!e || curenv->env_type == ENV_TYPE_GUEST) {
 		return -1;
