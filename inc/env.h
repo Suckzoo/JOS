@@ -10,6 +10,9 @@
 
 #include <inc/vmx.h>
 
+// LAB 5
+#include <inc/container.h>
+
 
 typedef int32_t envid_t;
 extern pml4e_t *boot_pml4e;
@@ -54,8 +57,7 @@ enum EnvType {
 	ENV_TYPE_GUEST,     // A VMM guest OS
 	ENV_TYPE_IDLE,
 	
-	ENV_TYPE_JOCKER, // A jocker manager
-	ENV_TYPE_CONTAINER // A container maintained by jocker
+	ENV_TYPE_JOCKER // A jocker manager
 
 };
 
@@ -90,6 +92,9 @@ struct Env {
 	uint8_t *elf;
 
 	struct VmxGuestInfo env_vmxinfo;
+
+// LAB 5
+	struct container_entry * env_container_ptr;
 
 };
 

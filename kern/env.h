@@ -17,9 +17,11 @@ extern struct Segdesc gdt[];
 
 void	env_init(void);
 void	env_init_percpu(void);
-int	env_alloc(struct Env **e, envid_t parent_id);
+// LAB 5
+int	env_alloc(struct Env **e, envid_t parent_id, int cid);
 void	env_free(struct Env *e);
-void	env_create(uint8_t *binary, enum EnvType type);
+// LAB 5
+void	env_create(uint8_t *binary, enum EnvType type, int cid);
 void	env_destroy(struct Env *e);	// Does not return if e == curenv
 
 int	envid2env(envid_t envid, struct Env **env_store, bool checkperm);
@@ -35,20 +37,20 @@ int env_guest_alloc(struct Env **newenv_store, envid_t parent_id);
 // ENV_CREATE because of the C pre-processor's argument prescan rule.
 #define ENV_PASTE3(x, y, z) x ## y ## z
 
-
+// LAB 5
 #ifndef VMM_GUEST
-#define ENV_CREATE(x, type)						\
+#define ENV_CREATE(x, type, cid)						\
 	do {								\
 		extern uint8_t ENV_PASTE3(_binary_obj_, x, _start)[];	\
 		env_create(ENV_PASTE3(_binary_obj_, x, _start),		\
-			   type);					\
+			   type, cid);					\
 	} while (0)
 #else
-#define ENV_CREATE(x, type)						\
+#define ENV_CREATE(x, type, cid)						\
 	do {								\
 		extern uint8_t ENV_PASTE3(_binary_vmm_guest_obj_, x, _start)[];	\
 		env_create(ENV_PASTE3(_binary_vmm_guest_obj_, x, _start),		\
-			   type);					\
+			   type, cid);					\
 	} while (0)
 #endif //!VMM_GUEST
 

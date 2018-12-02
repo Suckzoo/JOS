@@ -362,7 +362,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	case VMX_VMCALL_BACKTOHOST:
 		cprintf("Now back to the host, VM halt in the background, run vmmanager to resume the VM.\n");
 		curenv->env_status = ENV_NOT_RUNNABLE;	//mark the guest not runable
-		ENV_CREATE(user_sh, ENV_TYPE_USER);	//create a new host shell
+		ENV_CREATE(user_sh, ENV_TYPE_USER, -1);	//create a new host shell
 		handled = true;
 		break;	
 	case VMX_VMCALL_GETDISKIMGNUM:	//alloc a number to guest

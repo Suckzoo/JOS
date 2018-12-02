@@ -204,7 +204,7 @@ int test_ept_map(void)
 	int i;
 	epte_t* dir;
 	/* Initialize source env */
-	if ((r = env_alloc(&srcenv, 0)) < 0)
+	if ((r = env_alloc(&srcenv, 0, -1)) < 0)
 		panic("Failed to allocate env (%d)\n", r);
 	if (!(pp = page_alloc(ALLOC_ZERO)))
 		panic("Failed to allocate page (%d)\n", r);
@@ -213,7 +213,7 @@ int test_ept_map(void)
 	curenv = srcenv;
 
 	/* Check if sys_ept_map correctly verify the target env */
-	if ((r = env_alloc(&dstenv, srcenv->env_id)) < 0)
+	if ((r = env_alloc(&dstenv, srcenv->env_id, -1)) < 0)
 		panic("Failed to allocate env (%d)\n", r);
 	if ((r = _export_sys_ept_map(srcenv->env_id, UTEMP, dstenv->env_id, UTEMP, __EPTE_READ)) < 0)
 		cprintf("EPT map to non-guest env failed as expected (%d).\n", r);

@@ -131,12 +131,17 @@ serve_open(envid_t envid, struct Fsreq_open *req,
 	int fileid;
 	int r;
 	struct OpenFile *o;
+	int rootLen = 0;
 
 	if (debug)
 		cprintf("serve_open %08x %s 0x%x\n", envid, req->req_path, req->req_omode);
 
 	// Copy in the path, making sure it's null-terminated
-	memmove(path, req->req_path, MAXPATHLEN);
+	// LAB 5: lookup envid in container_queue, add chroot string
+	r = sys_getroot(envid, path);
+	if(r>=0)
+		rootLen = strlen(path);
+	memmove(&path[rootLen], req->req_path, MAXPATHLEN - rootLen);
 	path[MAXPATHLEN-1] = 0;
 
 	// Find an open file ID
@@ -327,6 +332,7 @@ serve_remove(envid_t envid, struct Fsreq_remove *req)
 {
 	char path[MAXPATHLEN];
 	int r;
+	int rootLen = 0;
 
 	if (debug)
 		cprintf("serve_remove %08x %s\n", envid, req->req_path);
@@ -335,7 +341,11 @@ serve_remove(envid_t envid, struct Fsreq_remove *req)
 	// Note: This request doesn't refer to an open file.
 
 	// Copy in the path, making sure it's null-terminated
-	memmove(path, req->req_path, MAXPATHLEN);
+	// LAB 5: lookup envid in container_queue, add chroot string
+	r = sys_getroot(envid, path);
+	if(r>=0)
+		rootLen = strlen(path);
+	memmove(&path[rootLen], req->req_path, MAXPATHLEN - rootLen);
 	path[MAXPATHLEN-1] = 0;
 
 	// Delete the specified file

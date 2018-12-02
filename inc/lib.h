@@ -79,6 +79,9 @@ int	sys_net_receive(char *buf, unsigned int len);
 
 int sys_ept_map(envid_t srcenvid, void *srcva, envid_t guest, void* guest_pa, int perm);
 envid_t sys_env_mkguest(uint64_t gphysz, uint64_t gRIP);
+// LAB 5
+static int sys_getroot(envid_t envid, void *dst);
+
 #ifndef VMM_GUEST
 void	sys_vmx_list_vms();
 int	sys_vmx_sel_resume(int i);

@@ -136,23 +136,24 @@ i386_init(void)
 	boot_aps();
 #endif
 
-
-
 	// LAB 5 TEST PURPOSE
 	test_container();
 
-
+	// LAB 5
+	// TODO: setup containers
+	/*
+	int cid = add_container("/cont1")
+	*/
 
 	// Start fs.
-	ENV_CREATE(fs_fs, ENV_TYPE_FS);
+	ENV_CREATE(fs_fs, ENV_TYPE_FS, -1);
 
 	// Start jocker.
-	ENV_CREATE(jocker_jocker, ENV_TYPE_JOCKER);
-
+	ENV_CREATE(jocker_jocker, ENV_TYPE_JOCKER, -1);
 
 #if defined(TEST)
 	// Don't touch -- used by grading script!
-	ENV_CREATE(TEST, ENV_TYPE_USER);
+	ENV_CREATE(TEST, ENV_TYPE_USER, -1);
 #else
 	// Touch all you want.
 
@@ -163,8 +164,8 @@ i386_init(void)
 #endif
 
 
-
-	ENV_CREATE(user_icode, ENV_TYPE_USER);
+	// LAB 5
+	ENV_CREATE(user_icode, ENV_TYPE_USER, cid);
 
 #endif // TEST*
 
@@ -172,7 +173,8 @@ i386_init(void)
 	// Should not be necessary - drains keyboard because interrupt has given up.
 	kbd_intr();
 
-
+	// LAB 5
+	// TODO: map some previous env to container
 
 	// Schedule and run the first user environment!
 	sched_yield();

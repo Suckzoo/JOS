@@ -355,13 +355,18 @@ void env_guest_free(struct Env *e) {
 // Returns 0 on success, < 0 on failure.  Errors include:
 //	-E_NO_FREE_ENV if all NENVS environments are allocated
 //	-E_NO_MEM on memory exhaustion
-//
+// LAB 5
+// IF cid <0, ignore cid
+// ELSE check container and copy to env_container_ptr
 int
-env_alloc(struct Env **newenv_store, envid_t parent_id)
+env_alloc(struct Env **newenv_store, envid_t parent_id, int cid)
 {
 	int32_t generation;
 	int r;
 	struct Env *e;
+	// LAB 5
+	struct Env *pe;
+	extern static struct container_entry conts[];
 
 	if (!(e = env_free_list))
 		return -E_NO_FREE_ENV;
@@ -381,6 +386,20 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	e->env_type = ENV_TYPE_USER;
 	e->env_status = ENV_RUNNABLE;
 	e->env_runs = 0;
+	// LAB 5
+	if(parent_id != 0) {
+		envid2env(parent_id, &pe, 0);
+
+	}
+	if(pe && pe->env_container_ptr) {
+		e->env_container_ptr = pe->env_container_ptr;
+	} else if(cid < 0 || cid > CONTAINER_MAX_COUNT-1)
+		e->env_container_ptr = NULL;
+	else if(conts[cid].active != 1){
+		e->env_container_ptr = NULL;
+	} else {
+		e->env_container_ptr = &conts[cid];
+	}
 
 	// Clear out all the saved register state,
 	// to prevent the register values
@@ -542,13 +561,13 @@ load_icode(struct Env *e, uint8_t *binary)
 // The new env's parent ID is set to 0.
 //
 void
-env_create(uint8_t *binary, enum EnvType type)
+env_create(uint8_t *binary, enum EnvType type, int cid)
 {
 	// LAB 3: Your code here.
 
 	int r;
 	struct Env *e;
-	if ((r = env_alloc(&e, 0)) < 0)
+	if ((r = env_alloc(&e, 0, cid)) < 0)
 		panic("env_create: could not allocate env: %e\n", r);
 	load_icode(e, binary);
 	e->env_type = type;

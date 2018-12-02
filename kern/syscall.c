@@ -9,6 +9,8 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+// LAB 5
+#include <inc/container.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -98,7 +100,7 @@ sys_exofork(void)
 	int r;
 	struct Env *e;
 
-	if ((r = env_alloc(&e, curenv->env_id)) < 0)
+	if ((r = env_alloc(&e, curenv->env_id, -1)) < 0)
 		return r;
 	e->env_status = ENV_NOT_RUNNABLE;
 	e->env_tf = curenv->env_tf;
@@ -583,8 +585,19 @@ static envid_t
 }
 #endif //!VMM_GUEST
 
-
-
+// LAB 5
+static int sys_getroot(envid_t envid, void *dst) {
+	struct Env * e;
+	envid2env(envid, &e, 1);
+	if(!e || curenv->env_type == ENV_TYPE_GUEST)
+		return -1;
+	else if(!e->env_container_ptr) {
+		return 0;
+	} else {
+		memcpy(dst, e->env_container_ptr->root_str, strnlen(e->env_container_ptr->root_str, CHROOT_LEN));
+		return 1;
+	}
+}
 
 // Dispatches to the correct kernel function, passing the arguments.
 int64_t
@@ -652,6 +665,8 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		sys_vmx_incr_vmdisk_number();
 		return 0;
 #endif
+	case SYS_getroot:
+		return sys_getroot(a1, a2);
 
 		
 	default:
@@ -670,3 +685,4 @@ _export_sys_ept_map(envid_t srcenvid, void *srcva,
 }
 #endif
 #endif
+
