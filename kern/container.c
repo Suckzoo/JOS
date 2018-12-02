@@ -1,9 +1,13 @@
 #include <kern/container.h>
+#include <inc/lib.h>
 
 static int ipc_hold_cnt = 0;								// 
-static struct container_entry conts[CONTAINER_MAX_COUNT];
+struct container_entry conts[CONTAINER_MAX_COUNT];
 static LIST_HEAD(cont_free, container_entry) cont_free;
 static LIST_HEAD(cont_active, container_entry) cont_active;
+// credit allocation variables
+unsigned int credit_reserves = 0;
+int credit_cont_num = 0;
 
 // setup memory structure for container allocation
 void init_container() {
@@ -28,7 +32,7 @@ int add_container(char * root_str) {
 
     // initalize container for use
     memcpy(c->root_str, root_str, CHROOT_LEN);
-    c->remaining_credit = 0
+    c->remaining_credit = 0;
     c->ipc_backptr = NULL;
     c->active = 1;
     // attach to active container list
@@ -138,20 +142,13 @@ void test_container() {
 	remove_container(2);
 	remove_container(2);
 	remove_container(3);
-	add_ipc(1, 2, 3, 1, (void *)0);
-	add_ipc(2, 2, 3, 2, (void *)0);
-	add_ipc(4, 2, 3, 3, (void *)0);
-	add_ipc(4, 2, 3, 4, (void *)0);
-	add_ipc(4, 2, 3, 5, (void *)0);
-	add_ipc(4, 2, 3, 6, (void *)0);
-	printf("%d\n", ipc_hold_cnt);
-	process_ipc();
+	//add_ipc(1, 2, 3, 1, (void *)0);
+	//process_ipc();
 	return;
 }
 
 /* ----------------------- credit allocation ----------------------- */
-unsigned int credit_reserves = 0;
-int credit_cont_num = 0;
+
 // not finished
 /*
 void calc_credit() {

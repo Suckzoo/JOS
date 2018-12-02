@@ -35,6 +35,11 @@
 #ifndef JOS_INC_QUEUE_H
 #define JOS_INC_QUEUE_H
 
+// LAB 5
+#ifndef NULL
+#define NULL	((void *) 0)
+#endif /* !NULL */
+
 /*
  * A list is headed by a single forward pointer (or an array of forward
  * pointers for a hash table header). The elements are doubly linked

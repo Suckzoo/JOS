@@ -264,6 +264,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 	uint64_t multiboot_map_addr = 0x6000;
 	memory_map_t mmap[3];
 	struct Env *fs;
+	int i;
 	switch(tf->tf_regs.reg_rax) {
 	case VMX_VMCALL_MBMAP:
 		// Craft a multiboot (e820) memory map for the guest.
@@ -333,7 +334,7 @@ handle_vmcall(struct Trapframe *tf, struct VmxGuestInfo *gInfo, uint64_t *eptrt)
 		perm = tf->tf_regs.reg_rsi;
 		gpa_pg = (void*)tf->tf_regs.reg_rdx;
 		if (to_env == VMX_HOST_FS_ENV && curenv->env_type == ENV_TYPE_GUEST) {
-			for (int i = 0; i < NENV; i++) {
+			for (i = 0; i < NENV; i++) {
 				if (envs[i].env_type == ENV_TYPE_FS) {
 					fs = &envs[i];
 					to_env = envs[i].env_id;

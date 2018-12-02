@@ -56,7 +56,7 @@ serve(void)
 		// ipc_send(whom, r, pg, perm);
 		if(debug)
 			cprintf("JOCKER: Sent response %d to %x\n", r, whom);
-		sys_page_unmap(thsienv->env_id, fsreq);
+		sys_page_unmap(thisenv->env_id, fsreq);
 	}
 }
 

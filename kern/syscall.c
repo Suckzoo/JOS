@@ -588,9 +588,11 @@ static envid_t
 // LAB 5
 static int sys_getroot(envid_t envid, void *dst) {
 	struct Env * e;
-	envid2env(envid, &e, 1);
-	if(!e || curenv->env_type == ENV_TYPE_GUEST)
+	cprintf("envid: %d\n",envid);
+	envid2env(envid, &e, 0);
+	if(!e || curenv->env_type == ENV_TYPE_GUEST) {
 		return -1;
+	}
 	else if(!e->env_container_ptr) {
 		return 0;
 	} else {
@@ -666,7 +668,7 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		return 0;
 #endif
 	case SYS_getroot:
-		return sys_getroot(a1, a2);
+		return sys_getroot(a1, (void *)a2);
 
 		
 	default:

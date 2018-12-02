@@ -141,9 +141,9 @@ i386_init(void)
 
 	// LAB 5
 	// TODO: setup containers
-	/*
-	int cid = add_container("/cont1")
-	*/
+	
+	int cid = add_container("/cont1");
+	
 
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS, -1);

@@ -11,7 +11,9 @@ FSOFILES += 		$(OBJDIR)/fs/vmx_host.o
 ROOTAPPS := $(OBJDIR)/user/init
 
 FSIMGTXTFILES :=	fs/newmotd \
-			fs/motd 
+			fs/motd \
+			fs/cont1motd \
+			fs/cont1/motd
 
 ifdef GUEST_KERN
 FSIMGTXTFILES +=	fs/motd_guest

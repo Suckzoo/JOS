@@ -157,7 +157,7 @@ sys_env_mkguest(uint64_t gphysz, uint64_t gRIP) {
 }
 // LAB 5
 int sys_getroot(envid_t envid, void *dst) {
-	return (int) syscall(SYS_getroot, 0, envid, dst, 0, 0, 0);
+	return (int) syscall(SYS_getroot, 0, envid, (uint64_t)dst, 0, 0, 0);
 }
 #ifndef VMM_GUEST
 void

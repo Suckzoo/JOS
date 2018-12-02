@@ -22,6 +22,9 @@
 #include <vmm/vmx.h>
 #include <vmm/ept.h>
 
+// LAB 5
+#include <kern/container.h>
+
 extern bool bootstrapped;
 int vcpu_count = 0;
 
@@ -366,7 +369,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id, int cid)
 	struct Env *e;
 	// LAB 5
 	struct Env *pe;
-	extern static struct container_entry conts[];
+	extern struct container_entry conts[CONTAINER_MAX_COUNT];
 
 	if (!(e = env_free_list))
 		return -E_NO_FREE_ENV;
