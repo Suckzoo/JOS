@@ -37,7 +37,9 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/testpteshare \
 			$(OBJDIR)/user/testshell \
 			$(OBJDIR)/user/jocker \
-			$(OBJDIR)/user/hello
+			$(OBJDIR)/user/hello \
+			$(OBJDIR)/user/heavyreader \
+			$(OBJDIR)/user/fairbench
 			
 ifndef GUEST_KERN
 USERAPPS +=		$(OBJDIR)/user/vmmanager 
@@ -49,7 +51,7 @@ FSIMGTXTFILES :=	$(FSIMGTXTFILES) \
 			fs/testshell.key \
 			fs/testshell.sh
 
-FSCHROOTTXTFILES := jocker/shark
+FSCHROOTFILES := jocker/shark 
 
 ifndef GUEST_KERN
 GUESTKERNELS = $(GUESTDIR)/$(OBJDIR)/kern/kernel
@@ -91,7 +93,7 @@ $(OBJDIR)/fs/clean-fs.img: $(OBJDIR)/fs/fsformat $(FSIMGFILES)
 	$(V)mkdir -p $(@D)
 
 ifndef GUEST_KERN
-	$(V)$(OBJDIR)/fs/fsformat $(OBJDIR)/fs/clean-fs.img 4096  $(FSIMGTXTFILES) -b $(USERAPPS) -sb $(ROOTAPPS) -g $(GUESTKERNELS) -j ${FSCHROOTTXTFILES}
+	$(V)$(OBJDIR)/fs/fsformat $(OBJDIR)/fs/clean-fs.img 4096  $(FSIMGTXTFILES) -b $(USERAPPS) -sb $(ROOTAPPS) -g $(GUESTKERNELS) -j ${FSCHROOTFILES}
 else
 	$(V)$(OBJDIR)/fs/fsformat $(OBJDIR)/fs/clean-fs.img 1024 $(FSIMGTXTFILES) -b $(USERAPPS) -sb $(ROOTAPPS)
 endif
