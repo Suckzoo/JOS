@@ -142,7 +142,6 @@ i386_init(void)
 	init_container();
 	int cid = add_container("/jocker/cont0");
 	int cid2 = add_container("/jocker/cont1");
-	
 
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS, -1);

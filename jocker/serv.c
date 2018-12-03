@@ -38,8 +38,9 @@ serve(void)
 			// dequeue ipc_entry
 			r = sys_cont_dequeue_ipc((int32_t *) &from_pid, &to_pid, &value, &srcva, &perm);
 			// send ipc as if it is sent from from_pid
-			if(r>0)
-				sys_cont_ipc_send(from_pid, to_pid, value, srcva, perm);
+			if(r==0) {
+				cont_ipc_send(from_pid, to_pid, value, srcva, perm);
+			}
 		}
 	}
 }
@@ -71,7 +72,6 @@ umain(int argc, char **argv)
 	cprintf("Jocker shark is swimming\n");
 
 	draw_fancy_logo();
-
 	// ipc_queue_init();
 	// redirect_table_init();
 

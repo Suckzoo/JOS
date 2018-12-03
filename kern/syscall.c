@@ -347,8 +347,8 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	pte_t *ppte;
 	if ((r = envid2env(envid, &e, 0)) < 0)
 		return r;
-	if(curenv->env_container_ptr) {
-		return enqueue_cont_ipc(curenv->env_container_ptr->cid, curenv->env_id, envid, value, srcva, perm);
+	if(curenv && curenv->env_cid>-1 && curenv->env_cid<CONTAINER_MAX_COUNT) {
+		return enqueue_cont_ipc(curenv->env_cid, curenv->env_id, envid, value, srcva, perm);
 	}
 
 	if (!e->env_ipc_recving) {
@@ -453,6 +453,7 @@ sys_cont_ipc_send(envid_t from_pid, envid_t to_pid, uint32_t value, void * srcva
 		return r;
 	if ((r = envid2env(to_pid, &e, 0)) < 0)
 		return r;
+
 	if (!e->env_ipc_recving) {
 		/* cprintf("[%08x] not recieving!\n", e->env_id); */
 		return -E_IPC_NOT_RECV;
@@ -563,8 +564,9 @@ sys_ipc_recv(void *dstva)
 static int
 sys_cont_isqueue_sleep()
 {
-	if(curenv->env_type != ENV_TYPE_JOCKER)
+	if(curenv->env_type != ENV_TYPE_JOCKER) {
 		return 0;
+	}
 	if(!isqueue(curenv)) {
 		sched_yield();
 	}
@@ -706,14 +708,15 @@ static envid_t
 // LAB 5
 static int sys_getroot(envid_t envid, void *dst) {
 	struct Env * e;
+	extern struct container_entry conts[CONTAINER_MAX_COUNT];
 	envid2env(envid, &e, 0);
 	if(!e || curenv->env_type == ENV_TYPE_GUEST) {
 		return -1;
 	}
-	else if(!e->env_container_ptr) {
+	else if(e->env_cid<0||e->env_cid>CONTAINER_MAX_COUNT-1) {
 		return 0;
 	} else {
-		memcpy(dst, e->env_container_ptr->root_str, strnlen(e->env_container_ptr->root_str, CHROOT_LEN));
+		memcpy(dst, conts[e->env_cid].root_str, strnlen(conts[e->env_cid].root_str, CHROOT_LEN));
 		return 1;
 	}
 }

@@ -110,6 +110,7 @@ sys_exofork(void)
 
 // ipc.c
 void	ipc_send(envid_t to_env, uint32_t value, void *pg, int perm);
+void	cont_ipc_send(envid_t from_env, envid_t to_env, uint32_t val, void *pg, int perm);
 int32_t ipc_recv(envid_t *from_env_store, void *pg, int *perm_store);
 envid_t	ipc_find_env(enum EnvType type);
 

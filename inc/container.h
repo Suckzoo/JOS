@@ -10,6 +10,7 @@
 #define CONTAINER_MAX_COUNT	5
 #define MESSAGE_QEUEUE_MAX_COUNT	10	
 #define CHROOT_LEN	100
+#define MAX_CREDIT	1000
 
 #define NO_CONT_ERR (-1)
 #define NO_IPC_ERR (-2)
@@ -31,13 +32,17 @@ struct container_entry {
 	int ref_cnt;
 	int remaining_credit;
 
-	struct ipc_entry ipc_fronts[MESSAGE_QEUEUE_MAX_COUNT];
+	struct ipc_entry ipcs[MESSAGE_QEUEUE_MAX_COUNT];
 	LIST_HEAD(ipc_free, ipc_entry) ipc_free;
 	LIST_HEAD(ipc_active, ipc_entry) ipc_active;
 	struct ipc_entry *ipc_backptr;
 	// do not require send back ipc processing, because it goes directly to the process
 
     LIST_ENTRY(container_entry) link;
+
+    // locks
+    struct spinlock ipc_active_lk;
+
 };
 
 #endif // !JOS_INC_CON_H

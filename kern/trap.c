@@ -16,6 +16,8 @@
 #include <kern/picirq.h>
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
+// LAB 5
+#include <kern/container.h>
 
 #include <kern/time.h>
 
@@ -26,6 +28,7 @@ extern uintptr_t gdtdesc_64;
 struct Taskstate ts;
 extern struct Segdesc gdt[];
 extern long gdt_pd;
+int container_calc_tick = 0;
 
 /* For debugging, so print_trapframe can distinguish between printing
  * a saved trapframe and printing the current trapframe and print some
@@ -299,8 +302,12 @@ trap_dispatch(struct Trapframe *tf)
 
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
 		// irq 0 -- clock interrupt
+		// LAB 5
+		container_calc_tick++;
+		if(container_calc_tick%100 == 0) {
+			calc_credit();
+		}
 
-		
 		if (cpunum() == 0)
 			time_tick();
 

@@ -71,6 +71,18 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 		panic("error in ipc_send: %e", r);
 
 }
+void
+cont_ipc_send(envid_t from_env, envid_t to_env, uint32_t val, void *pg, int perm)
+{
+
+	int r;
+	while ((r = sys_cont_ipc_send(from_env, to_env, val, pg, perm)) == -E_IPC_NOT_RECV) {
+		sys_yield();
+	}
+	if (r < 0)
+		panic("error in ipc_send: %e", r);
+
+}
 
 
 #ifdef VMM_GUEST

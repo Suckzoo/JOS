@@ -360,7 +360,7 @@ void env_guest_free(struct Env *e) {
 //	-E_NO_MEM on memory exhaustion
 // LAB 5
 // IF cid <0, ignore cid
-// ELSE check container and copy to env_container_ptr
+// ELSE check container and copy to env_cid
 int
 env_alloc(struct Env **newenv_store, envid_t parent_id, int cid)
 {
@@ -394,14 +394,17 @@ env_alloc(struct Env **newenv_store, envid_t parent_id, int cid)
 		envid2env(parent_id, &pe, 0);
 
 	}
-	if(pe && pe->env_container_ptr) {
-		e->env_container_ptr = pe->env_container_ptr;
-	} else if(cid < 0 || cid > CONTAINER_MAX_COUNT-1)
-		e->env_container_ptr = NULL;
+	if(pe && pe->env_cid) {
+		e->env_cid = pe->env_cid;
+		if(pe->env_cid<0||pe->env_cid>CONTAINER_MAX_COUNT-1)
+			e->env_cid = -1;
+	} else if(cid < 0 || cid > CONTAINER_MAX_COUNT-1){
+		e->env_cid = -1;
+	}
 	else if(conts[cid].active != 1){
-		e->env_container_ptr = NULL;
+		e->env_cid = -1;
 	} else {
-		e->env_container_ptr = &conts[cid];
+		e->env_cid = cid;
 	}
 
 	// Clear out all the saved register state,

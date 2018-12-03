@@ -11,3 +11,4 @@ int dequeue_ipc(envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint32_t * value_p
 int dequeue_cont_ipc(int cid, envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint32_t * value_ptr, void ** srcva_ptr, unsigned * perm_ptr);
 int enqueue_cont_ipc(int cid, int from_pid, int to_pid, int value, void * srcva, int perm);
 int isqueue(struct Env * e);
+void calc_credit();

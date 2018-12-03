@@ -11,26 +11,42 @@ int cont_cnt = 0;
 int ipc_total_cnt = 0;
 struct Env * jocker_env = NULL;
 
+// locks
+struct spinlock cont_free_lk;
+struct spinlock cont_active_lk;
+
 // setup memory structure for container allocation
 void init_container() {
-	int i;
+	int i, j;
 	// set all container entry to free set
 	for(i=0; i<CONTAINER_MAX_COUNT; i++) {
 		conts[i].cid = i;
 		conts[i].active = 0;
 		LIST_INSERT_HEAD(&cont_free, &conts[i], link);
+		for(j=0; j<MESSAGE_QEUEUE_MAX_COUNT; j++) {
+			LIST_INSERT_HEAD(&(conts[i].ipc_free), &(conts[i].ipcs[j]), link);
+		}
+		spin_initlock(&conts[i].ipc_active_lk);
 	}
+	spin_initlock(&cont_free_lk);
+	spin_initlock(&cont_active_lk);
 }
 
 // add container with root string, return cid or error(<0)
 int add_container(char * root_str) {
 	// get a container from free container set
+	// LOCK free cont
+	spin_lock(&cont_free_lk);
 	struct container_entry *c = LIST_FIRST(&cont_free);
 	if (!c) {
+		// UNLOCK free cont
+		spin_unlock(&cont_free_lk);
 		cprintf("no container available\n");
 		return NO_CONT_ERR;
     }
     LIST_REMOVE(c, link);
+    // UNLOCK free cont
+	spin_unlock(&cont_free_lk);
 
     // initalize container for use
     memcpy(c->root_str, root_str, CHROOT_LEN);
@@ -39,13 +55,12 @@ int add_container(char * root_str) {
     c->active = 1;
     c->ref_cnt = 0;
     // attach to active container list
+    // LOCK cont_active
+	spin_lock(&cont_active_lk);
     LIST_INSERT_HEAD(&cont_active, c, link);
-
-    // for credit calculator function
-    cont_cnt += 1;
-    if(cont_cnt == 1) {
-    	// start calc_credit timer
-    }
+    cont_cnt ++;
+    // UNLOCK cont_active
+	spin_unlock(&cont_active_lk);
 
     // return container id
     return c->cid;
@@ -55,11 +70,13 @@ int incref_container(int cid) {
 	if(cid < 0 || cid > CONTAINER_MAX_COUNT-1) {
 		return -1;
 	}
-	conts[cid].ref_cnt++;
+	// LOCK creat & ref_cnt
 	if(!conts[cid].active) {
-		conts[cid].ref_cnt--;
+		// UNLOCK creat & ref_cnt
 		return -1;
 	}
+	conts[cid].ref_cnt++;
+	// UNLOCK creat & ref_cnt
 	return 0;
 }
 // this will not automatically remove container.
@@ -67,10 +84,15 @@ int decref_container(int cid) {
 	if(cid < 0 || cid > CONTAINER_MAX_COUNT-1) {
 		return -1;
 	}
+	// LOCK creat & ref_cnt
 	if(!conts[cid].active) {
+		// LOCK creat & ref_cnt
 		return -1;
 	}
 	conts[cid].ref_cnt--;
+	if(conts[cid].ref_cnt < 1)
+		remove_container(cid);
+	// LOCK creat & ref_cnt
 	return 0;
 }
 
@@ -87,14 +109,18 @@ void remove_container(int cid) {
 		return;
 	if(c->ref_cnt != 0)
 		return;
+	// LOCK cont_cnt
+	spin_lock(&cont_active_lk);
 	LIST_REMOVE(c, link);
-	c->active = 0;
-	LIST_INSERT_HEAD(&cont_free, c, link);
     cont_cnt -= 1;
-    if(cont_cnt < 0) {
-    	// stop calc_credit timer
-    	cont_cnt = 0;
-    }
+	spin_unlock(&cont_active_lk);
+	c->active = 0;
+	// UNLOCK cont_cnt
+    // LOCK cont free
+	spin_lock(&cont_free_lk);
+	LIST_INSERT_HEAD(&cont_free, c, link);
+    // UNLOCK cont free
+	spin_unlock(&cont_free_lk);
 }
 
 int isqueue(struct Env * e) {
@@ -127,38 +153,49 @@ int cont_credit_use_per_ipc(int cid) {
 // attach ipc message to message queue inside a container
 int enqueue_cont_ipc(int cid, int from_pid, int to_pid, int value, void * srcva, int perm) {
 	struct container_entry *c = &conts[cid];
-	struct ipc_entry *i = LIST_FIRST(&c->ipc_free);
+	struct ipc_entry *i;
 	if (!c->active) {
 		cprintf("no active container\n");
 		return NO_ACTIVE_CONTAINER_ERR;
 	}
+
+	// LOCK ipc_free
+	i = LIST_FIRST(&c->ipc_free);
 	if(!i) {
-		cprintf("no ipc available\n");
+		//cprintf("no ipc available\n");
 		return -E_IPC_NOT_RECV;
 	}
 
 	/* CASE 1: reduction per ipc */
 	if(cont_credit_use_per_ipc(cid)<0) {
-		cprintf("no credit\n");
+		//cprintf("no credit\n");
 		return -E_IPC_NOT_RECV;
 	}
 	/* CASE 2: reduction per byte if READ/WRITE */
-
 	LIST_REMOVE(i, link);
+	// UNLOCK ipc_free
+
+	spin_lock(&c->ipc_active_lk);
 	i->from = from_pid;
 	i->to = to_pid;
 	i->value = value;
 	i->srcva = srcva;
 	i->perm = perm;
-	if(!c->ipc_backptr) 
+	if(!c->ipc_backptr) {
 		LIST_INSERT_HEAD(&c->ipc_active, i, link);
-	else
-		LIST_INSERT_AFTER(c->ipc_backptr, i, link);
+	}
+	else {
+		//LIST_INSERT_AFTER(c->ipc_backptr, i, link);
+		LIST_INSERT_HEAD(&c->ipc_active, i, link);
+	}
 	c->ipc_backptr = i;
+	spin_unlock(&c->ipc_active_lk);
 
-	if(!jocker_env)
-		panic("No Jocker Found!!\n");
-	if(jocker_env->env_status == ENV_NOT_RUNNABLE)
+	// LOCK TOTAL IPC
+	ipc_total_cnt++;
+	// UNLOCK TOTAL IPC
+
+	if(jocker_env && jocker_env->env_status == ENV_NOT_RUNNABLE)
 		jocker_env->env_status = ENV_RUNNABLE;
 	return 0;
 }
@@ -171,12 +208,15 @@ int dequeue_cont_ipc(int cid, envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint
 	struct ipc_entry *i;
 	if(!c->active)
 		return -1;
+	spin_lock(&c->ipc_active_lk);
 	i = LIST_FIRST(&c->ipc_active);
-	if(!i)
+	if(!i) {
+		spin_unlock(&c->ipc_active_lk);
 		return -1;
+	}
 	else {
 		// LOCK TOTAL IPC
-		ipc_total_cnt++;
+		ipc_total_cnt--;
 		// UNLOCK TOTAL IPC
 		// LOCK IPC LIST
 		LIST_REMOVE(i, link);
@@ -190,6 +230,7 @@ int dequeue_cont_ipc(int cid, envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint
 		*perm_ptr = i->perm;
 		LIST_INSERT_HEAD(&c->ipc_free, i, link);
 		// UNLOCK IPC LIST
+		spin_unlock(&c->ipc_active_lk);
 		return 0;
 	}
 
@@ -208,13 +249,46 @@ int dequeue_ipc(envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint32_t * value_p
 			return 0;
 		}
 		i = (i+1)%CONTAINER_MAX_COUNT;
-	} while(i == current_dequeue_idx);
+	} while(i != current_dequeue_idx);
 	return -1;
 }
 
 /* ----------------------- credit allocation ----------------------- */
 
-// not finished
+void calc_credit() {
+	struct container_entry * c;
+	unsigned int credit_total = MAX_CREDIT;
+	unsigned int credit_fair;
+	unsigned int credit_left = 0;
+	int container_count = cont_cnt;
+	// LOCK cont_active
+	spin_lock(&cont_active_lk);
+	if(cont_cnt == 0) {
+		// UNLOCK cont_active
+		spin_unlock(&cont_active_lk);
+		return;
+	}
+	if(credit_reserves > 0)
+		credit_total += credit_reserves;
+	LIST_FOREACH(c, &cont_active, link) {
+		credit_fair = (credit_total + (cont_cnt-1))/cont_cnt;
+		c->remaining_credit += credit_fair;
+
+		if(c->remaining_credit >= MAX_CREDIT) {
+			credit_left += (c->remaining_credit - credit_fair);
+			if(container_count > 1) {
+				c->remaining_credit = credit_fair;
+			} else {
+				c->remaining_credit = MAX_CREDIT;
+			}
+		}
+	}
+	// UNLOCK cont_active
+	spin_unlock(&cont_active_lk);
+	credit_reserves += credit_left;
+}
+
+
 /*
 void calc_credit() {
 	// 0. setting before credit distribution
@@ -235,7 +309,7 @@ void calc_credit() {
 	if(cont_cnt == 0)
 		goto out;
 
-	// 1. get each credit port and calculate remained_credit
+	// 1. get each credit port and calculate remaining_credit
 	if(credit_reserves > 0)
 		credit_total += credit_reserves;
 	//////////////////////////////////////////////////////////////////////////////////spin_lock_bh(&bca->credit_port_list_lock);
