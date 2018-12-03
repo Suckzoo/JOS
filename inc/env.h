@@ -94,7 +94,7 @@ struct Env {
 	struct VmxGuestInfo env_vmxinfo;
 
 // LAB 5
-	int env_cid;
+	cid_t env_cid;
 
 };
 

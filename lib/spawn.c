@@ -1,4 +1,4 @@
-
+#include <inc/container.h>
 #include <inc/lib.h>
 #include <inc/elf.h>
 
@@ -20,7 +20,7 @@ static int copy_shared_pages(envid_t child);
 // 	 which will be passed to the child as its command-line arguments.
 // Returns child envid on success, < 0 on failure.
 int
-spawn(const char *prog, const char **argv)
+_spawn(const char *prog, const char **argv, cid_t cid)
 {
 	unsigned char elf_buf[512];
 	struct Trapframe child_tf;
@@ -48,7 +48,8 @@ spawn(const char *prog, const char **argv)
 	//   - Map all of the program's segments that are of p_type
 	//     ELF_PROG_LOAD into the new environment's address space.
 	//     Use the p_flags field in the Proghdr for each segment
-	//     to determine how to map the segment:
+	//     to determine how to map thtaking command-line argument array directly on the stack,
+//e segment:
 	//
 	//	* If the ELF flags do not include ELF_PROG_FLAG_WRITE,
 	//	  then the segment contains text and read-only data.
@@ -125,8 +126,18 @@ spawn(const char *prog, const char **argv)
 				     fd, ph->p_filesz, ph->p_offset, perm)) < 0)
 			goto error;
 	}
+
+	if (cid != -1) {
+		int r = sys_map_container_to_env(child, cid);
+		if (r < 0) {
+			cprintf("Failed to map env %d to container %d.\n", child, cid);
+			goto error;
+		}
+	}
+	
 	close(fd);
 	fd = -1;
+
 
 
 	// Copy shared library state.
@@ -148,6 +159,11 @@ error:
 	return r;
 }
 
+int
+spawn(const char *prog, const char **argv)
+{
+	return _spawn(prog, argv, -1);
+}
 // Spawn, taking command-line arguments array directly on the stack.
 // NOTE: Must have a sentinal of NULL at the end of the args
 // (none of the args may be NULL).
@@ -176,7 +192,24 @@ spawnl(const char *prog, const char *arg0, ...)
 	for(i=0;i<argc;i++)
 		argv[i+1] = va_arg(vl, const char *);
 	va_end(vl);
-	return spawn(prog, argv);
+	return _spawn(prog, argv, -1);
+}
+
+// Spawn, but with a container which is chrooted on root.
+int
+spawnc(const char *prog, const char *root, const char **argv)
+{
+	cid_t c;
+	int r;
+	if ((r = sys_create_container(root)) < 0) {
+		return r;
+	}
+	c = (cid_t)r;
+	cprintf("%s\n", argv[1]);
+	if ((r = _spawn(prog, argv, c)) < 0) {
+		//sys_destroy_container
+	}
+	return r;	
 }
 
 

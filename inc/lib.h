@@ -17,6 +17,7 @@
 #include <inc/env.h>
 #include <inc/memlayout.h>
 #include <inc/syscall.h>
+#include <inc/container.h>
 
 #include <inc/trap.h>
 
@@ -86,6 +87,8 @@ int sys_ept_map(envid_t srcenvid, void *srcva, envid_t guest, void* guest_pa, in
 envid_t sys_env_mkguest(uint64_t gphysz, uint64_t gRIP);
 // LAB 5
 int sys_getroot(envid_t envid, void *dst);
+int sys_create_container(const char *root);
+int sys_map_container_to_env(envid_t envid, cid_t cid);
 
 #ifndef VMM_GUEST
 void	sys_vmx_list_vms();
@@ -176,6 +179,7 @@ int     nsipc_socket(int domain, int type, int protocol);
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+envid_t spawnc(const char *program, const char *root, const char **argv);
 
 
 

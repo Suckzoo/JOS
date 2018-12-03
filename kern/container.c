@@ -34,7 +34,7 @@ void init_container() {
 }
 
 // add container with root string, return cid or error(<0)
-int add_container(char * root_str) {
+int add_container(const char * root_str) {
 	// get a container from free container set
 	// LOCK free cont
 	spin_lock(&cont_free_lk);
@@ -50,7 +50,7 @@ int add_container(char * root_str) {
 	spin_unlock(&cont_free_lk);
 
     // initalize container for use
-    memcpy(c->root_str, root_str, CHROOT_LEN);
+    memcpy(c->root_str, root_str, strnlen(root_str, CHROOT_LEN));
     c->remaining_credit = 0;
     c->ipc_backptr = NULL;
     c->active = 1;

@@ -140,8 +140,10 @@ i386_init(void)
 	// LAB 5
 	// TODO: setup containers
 	init_container();
-	int cid = add_container("/jocker/cont0");
-	int cid2 = add_container("/jocker/cont1");
+	
+	// int cid = add_container("/jocker/cont0");
+	// int cid2 = add_container("/jocker/cont1");
+	
 
 	// Start fs.
 	ENV_CREATE(fs_fs, ENV_TYPE_FS, -1);
@@ -161,10 +163,11 @@ i386_init(void)
 #endif
 #endif
 
+	ENV_CREATE(user_icode, ENV_TYPE_USER, -1);
 
 	// LAB 5
-	ENV_CREATE(user_icode, ENV_TYPE_USER, cid);
-	ENV_CREATE(user_icode, ENV_TYPE_USER, cid2);
+	// ENV_CREATE(user_icode, ENV_TYPE_USER, cid);
+	// ENV_CREATE(user_icode, ENV_TYPE_USER, cid2);
 
 #endif // TEST*
 

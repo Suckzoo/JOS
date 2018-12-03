@@ -7,6 +7,7 @@
 #include <inc/queue.h>
 #include <inc/fs.h>
 #include <kern/spinlock.h>
+#include <inc/types.h>
 
 #define CONTAINER_MAX_COUNT	5
 #define MESSAGE_QEUEUE_MAX_COUNT	10	
@@ -16,6 +17,8 @@
 #define NO_CONT_ERR (-1)
 #define NO_IPC_ERR (-2)
 #define NO_ACTIVE_CONTAINER_ERR	(-3)
+
+typedef uint32_t cid_t;
 
 struct ipc_entry {
 	int from;

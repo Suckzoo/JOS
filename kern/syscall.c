@@ -17,6 +17,7 @@
 #include <kern/trap.h>
 #include <kern/syscall.h>
 #include <kern/console.h>
+#include <kern/container.h>
 
 #include <kern/sched.h>
 
@@ -721,6 +722,24 @@ static int sys_getroot(envid_t envid, void *dst) {
 	}
 }
 
+static int sys_create_container(const char* root) {
+	user_mem_assert(curenv, root, strnlen(root, CHROOT_LEN), PTE_U);
+	return add_container(root);
+}
+
+static int sys_map_container_to_env(envid_t envid, cid_t cid) {
+	int r;
+	struct Env *e;
+	if ((r = envid2env(envid, &e, 1)) < 0)
+		return r;
+	env_map_container(e, cid);
+	if (!e->env_container_ptr) {
+		return -1;
+	}
+	return 0;
+}
+
+
 // Dispatches to the correct kernel function, passing the arguments.
 int64_t
 syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
@@ -795,8 +814,10 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 #endif
 	case SYS_getroot:
 		return sys_getroot(a1, (void *)a2);
-
-		
+	case SYS_create_container:
+		return sys_create_container((const char *)a1);
+	case SYS_map_container_to_env:
+		return sys_map_container_to_env(a1, a2);
 	default:
 		return -E_NO_SYS;
 	}
