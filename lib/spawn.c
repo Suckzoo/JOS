@@ -205,7 +205,6 @@ spawnc(const char *prog, const char *root, const char **argv)
 		return r;
 	}
 	c = (cid_t)r;
-	cprintf("%s\n", argv[1]);
 	if ((r = _spawn(prog, argv, c)) < 0) {
 		//sys_destroy_container
 	}
