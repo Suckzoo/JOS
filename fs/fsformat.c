@@ -231,7 +231,7 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-	int i, idx;
+	int i;
 	char *s;
 	struct Dir root;
 	int flag=FLAG_ROOT;
@@ -243,13 +243,6 @@ main(int argc, char **argv)
 
 	struct Dir jocker;
 	struct File *j;
-
-	struct Dir c_dir[CONTAINER_MAX_COUNT];
-	struct Dir c_dir_bin[CONTAINER_MAX_COUNT];
-	struct Dir c_dir_sbin[CONTAINER_MAX_COUNT];
-	struct File *c_file[CONTAINER_MAX_COUNT];
-	struct File *c_file_bin[CONTAINER_MAX_COUNT];
-	struct File *c_file_sbin[CONTAINER_MAX_COUNT];
 
 	assert(BLKSIZE % sizeof(struct File) == 0);
 
@@ -277,22 +270,22 @@ main(int argc, char **argv)
 	j = diradd(&root, FTYPE_DIR, "jocker");
 	startdir(j, &jocker);
 
-	#define C_CNT 2
+	// #define C_CNT 1
 
 	// LAB 5
 	// should be increased as for each
-	c_file[0] = diradd(&jocker, FTYPE_DIR, "cont0");
-	c_file[1] = diradd(&jocker, FTYPE_DIR, "cont1");
-	//c_file[2] = diradd(&jocker, FTYPE_DIR, "cont2");
-	//c_file[3] = diradd(&jocker, FTYPE_DIR, "cont3");
-	//c_file[4] = diradd(&jocker, FTYPE_DIR, "cont4");
-	for(i=0; i<C_CNT; i++) {
-		startdir(c_file[i], &c_dir[i]);
-		c_file_bin[i] = diradd(&c_dir[i], FTYPE_DIR, "bin");
-		startdir(c_file_bin[i], &c_dir_bin[i]);
-		c_file_sbin[i] = diradd(&c_dir[i], FTYPE_DIR, "sbin");
-		startdir(c_file_sbin[i], &c_dir_sbin[i]);
-	}
+	// c_file[0] = diradd(&jocker, FTYPE_DIR, "cont0");
+	// c_file[1] = diradd(&jocker, FTYPE_DIR, "cont1");
+	// c_file[2] = diradd(&jocker, FTYPE_DIR, "cont2");
+	// c_file[3] = diradd(&jocker, FTYPE_DIR, "cont3");
+	// c_file[4] = diradd(&jocker, FTYPE_DIR, "cont4");
+	// for(i=0; i<C_CNT; i++) {
+	// 	startdir(c_file[i], &c_dir[i]);
+	// 	c_file_bin[i] = diradd(&c_dir[i], FTYPE_DIR, "bin");
+	// 	startdir(c_file_bin[i], &c_dir_bin[i]);
+	// 	c_file_sbin[i] = diradd(&c_dir[i], FTYPE_DIR, "sbin");
+	// 	startdir(c_file_sbin[i], &c_dir_sbin[i]);
+	// }
 	
 	for (i = 3; i < argc; i++) {
 		if(strcmp("-b", argv[i]) == 0) {
@@ -312,21 +305,21 @@ main(int argc, char **argv)
 		switch (flag){
 		case FLAG_ROOT:
 			writefile(&root, argv[i]);
-			for(idx=0; idx<C_CNT; idx++) {
-				writefile(&c_dir[idx], argv[i]);
-			}
+			// for(idx=0; idx<C_CNT; idx++) {
+			// 	writefile(&c_dir[idx], argv[i]);
+			// }
 			break;
 		case FLAG_BIN:
 			writefile(&bin, argv[i]);
-			for(idx=0; idx<C_CNT; idx++) {
-				writefile(&c_dir_bin[idx], argv[i]);
-			}
+			// for(idx=0; idx<C_CNT; idx++) {
+			// 	writefile(&c_dir_bin[idx], argv[i]);
+			// }
 			break;
 		case FLAG_SBIN:
 			writefile(&sbin, argv[i]);
-			for(idx=0; idx<C_CNT; idx++) {
-			writefile(&c_dir_sbin[idx], argv[i]);
-			}
+			// for(idx=0; idx<C_CNT; idx++) {
+			// writefile(&c_dir_sbin[idx], argv[i]);
+			// }
 			break;
 		case FLAG_VMM:
 			writefile(&vmm, argv[i]);
@@ -337,11 +330,11 @@ main(int argc, char **argv)
 		}
 	}
 	
-	for(i=0; i<C_CNT; i++) {
-		finishdir(&c_dir_sbin[i]);
-		finishdir(&c_dir_bin[i]);
-		finishdir(&c_dir[i]);
-	}
+	// for(i=0; i<C_CNT; i++) {
+	// 	finishdir(&c_dir_sbin[i]);
+	// 	finishdir(&c_dir_bin[i]);
+	// 	finishdir(&c_dir[i]);
+	// }
 	finishdir(&bin);
 	finishdir(&sbin);
 
