@@ -18,16 +18,18 @@ extern struct Segdesc gdt[];
 void	env_init(void);
 void	env_init_percpu(void);
 // LAB 5
-int	env_alloc(struct Env **e, envid_t parent_id, int cid);
+int	env_alloc(struct Env **e, envid_t parent_id, cid_t cid);
 void	env_free(struct Env *e);
+void	env_map_container(struct Env *e, cid_t cid);
 // LAB 5
-void	env_create(uint8_t *binary, enum EnvType type, int cid);
+void	env_create(uint8_t *binary, enum EnvType type, cid_t cid);
 void	env_destroy(struct Env *e);	// Does not return if e == curenv
 
 int	envid2env(envid_t envid, struct Env **env_store, bool checkperm);
 // The following two functions do not return
 void	env_run(struct Env *e) __attribute__((noreturn));
 void	env_pop_tf(struct Trapframe *tf) __attribute__((noreturn));
+
 
 
 int env_guest_alloc(struct Env **newenv_store, envid_t parent_id);

@@ -31,6 +31,8 @@ enum {
 	SYS_env_mkguest,
 	// LAB 5
 	SYS_getroot,
+	SYS_create_container,
+	SYS_map_container_to_env,
 #ifndef VMM_GUEST
 	SYS_vmx_list_vms,
 	SYS_vmx_sel_resume,

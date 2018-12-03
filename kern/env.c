@@ -361,15 +361,27 @@ void env_guest_free(struct Env *e) {
 // LAB 5
 // IF cid <0, ignore cid
 // ELSE check container and copy to env_container_ptr
+void
+env_map_container(struct Env *e, cid_t cid)
+{
+	extern struct container_entry conts[CONTAINER_MAX_COUNT];
+	if (cid < 0 || cid > CONTAINER_MAX_COUNT-1)
+		e->env_container_ptr = NULL;
+	else if (conts[cid].active != 1){
+		e->env_container_ptr = NULL;
+	} else {
+		e->env_container_ptr = &conts[cid];
+	}
+}
+
 int
-env_alloc(struct Env **newenv_store, envid_t parent_id, int cid)
+env_alloc(struct Env **newenv_store, envid_t parent_id, cid_t cid)
 {
 	int32_t generation;
 	int r;
 	struct Env *e;
 	// LAB 5
 	struct Env *pe;
-	extern struct container_entry conts[CONTAINER_MAX_COUNT];
 
 	if (!(e = env_free_list))
 		return -E_NO_FREE_ENV;
@@ -396,12 +408,8 @@ env_alloc(struct Env **newenv_store, envid_t parent_id, int cid)
 	}
 	if(pe && pe->env_container_ptr) {
 		e->env_container_ptr = pe->env_container_ptr;
-	} else if(cid < 0 || cid > CONTAINER_MAX_COUNT-1)
-		e->env_container_ptr = NULL;
-	else if(conts[cid].active != 1){
-		e->env_container_ptr = NULL;
 	} else {
-		e->env_container_ptr = &conts[cid];
+		env_map_container(e, cid);
 	}
 
 	// Clear out all the saved register state,
@@ -564,7 +572,7 @@ load_icode(struct Env *e, uint8_t *binary)
 // The new env's parent ID is set to 0.
 //
 void
-env_create(uint8_t *binary, enum EnvType type, int cid)
+env_create(uint8_t *binary, enum EnvType type, cid_t cid)
 {
 	// LAB 3: Your code here.
 

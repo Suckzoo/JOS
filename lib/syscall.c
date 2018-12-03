@@ -159,6 +159,15 @@ sys_env_mkguest(uint64_t gphysz, uint64_t gRIP) {
 int sys_getroot(envid_t envid, void *dst) {
 	return (int) syscall(SYS_getroot, 0, envid, (uint64_t)dst, 0, 0, 0);
 }
+
+int sys_create_container(const char *root) {
+	return (int) syscall(SYS_create_container, 0, (uint64_t)root, 0, 0, 0, 0);
+}
+
+int sys_map_container_to_env(envid_t envid, cid_t cid) {
+	return (int) syscall(SYS_map_container_to_env, 0, envid, cid, 0, 0, 0);
+}
+
 #ifndef VMM_GUEST
 void
 sys_vmx_list_vms() {
