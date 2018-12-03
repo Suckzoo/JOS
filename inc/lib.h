@@ -70,7 +70,12 @@ int	sys_page_map(envid_t src_env, void *src_pg,
 		     envid_t dst_env, void *dst_pg, int perm);
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint64_t value, void *pg, int perm);
+// LAB 5
+int sys_cont_dequeue_ipc(envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint32_t * value_ptr, void ** srcva_ptr, unsigned * perm_ptr);
 int	sys_ipc_recv(void *rcv_pg);
+// LAB 5
+int sys_cont_ipc_send(envid_t from_pid, envid_t to_pid, uint32_t value, void * srcva, unsigned perm);
+int sys_cont_isqueue_sleep();
 
 unsigned int sys_time_msec(void);
 

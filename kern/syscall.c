@@ -29,6 +29,8 @@
 #include <vmm/vmx.h>
 #endif
 
+// LAB 5
+#include <kern/container.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -342,9 +344,13 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	int r;
 	struct Env *e;
 	struct PageInfo *pp;
-	pte_t *ppte;    
+	pte_t *ppte;
 	if ((r = envid2env(envid, &e, 0)) < 0)
 		return r;
+	if(curenv->env_container_ptr) {
+		return enqueue_cont_ipc(curenv->env_container_ptr->cid, curenv->env_id, envid, value, srcva, perm);
+	}
+
 	if (!e->env_ipc_recving) {
 		/* cprintf("[%08x] not recieving!\n", e->env_id); */
 		return -E_IPC_NOT_RECV;
@@ -386,46 +392,147 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     
 	} else if (srcva < (void*) UTOP && e->env_ipc_dstva < (void*) UTOP) {
 
-			if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
-				cprintf("[%08x] bad perm %x in sys_ipc_try_send\n", curenv->env_id, perm);
-				return -E_INVAL;
-			}
-
-			pp = page_lookup(curenv->env_pml4e, srcva, &ppte);
-			if (pp == 0) {
-				cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", curenv->env_id, srcva);
-				return -E_INVAL;
-			}
-
-			if ((perm & PTE_W) && !(*ppte & PTE_W)) {
-				cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
-				return -E_INVAL;
-			}
-
-			r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
-			if (r < 0) {
-				cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
-				return r;
-			}
-
-			e->env_ipc_perm = perm;
-		} else {
-			e->env_ipc_perm = 0;
+		if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
+			cprintf("[%08x] bad perm %x in sys_ipc_try_send\n", curenv->env_id, perm);
+			return -E_INVAL;
 		}
 
-		e->env_ipc_recving = 0;
-		e->env_ipc_from = curenv->env_id;
-		e->env_ipc_value = value;
-		e->env_tf.tf_regs.reg_rax = 0;
-		e->env_status = ENV_RUNNABLE;
-
-		if(e->env_type == ENV_TYPE_GUEST) {
-			e->env_tf.tf_regs.reg_rsi = value;
+		pp = page_lookup(curenv->env_pml4e, srcva, &ppte);
+		if (pp == 0) {
+			cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", curenv->env_id, srcva);
+			return -E_INVAL;
 		}
 
-		return 0;
+		if ((perm & PTE_W) && !(*ppte & PTE_W)) {
+			cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", curenv->env_id);
+			return -E_INVAL;
+		}
 
+		r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
+		if (r < 0) {
+			cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", curenv->env_id, srcva, r);
+			return r;
+		}
+
+		e->env_ipc_perm = perm;
+	} else {
+		e->env_ipc_perm = 0;
 	}
+
+	e->env_ipc_recving = 0;
+	e->env_ipc_from = curenv->env_id;
+	e->env_ipc_value = value;
+	e->env_tf.tf_regs.reg_rax = 0;
+	e->env_status = ENV_RUNNABLE;
+
+	if(e->env_type == ENV_TYPE_GUEST) {
+		e->env_tf.tf_regs.reg_rsi = value;
+	}
+
+	return 0;
+
+}
+
+static int
+sys_cont_dequeue_ipc(envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint32_t * value_ptr, void ** srcva_ptr, unsigned * perm_ptr) {
+	if(curenv->env_type != ENV_TYPE_JOCKER)
+		return -1;
+	return dequeue_ipc(from_pid_ptr, to_pid_ptr, value_ptr, srcva_ptr, perm_ptr);
+}
+
+static int
+sys_cont_ipc_send(envid_t from_pid, envid_t to_pid, uint32_t value, void * srcva, unsigned perm) {
+	int r;
+	struct Env *from_e;
+	struct Env *e;
+	struct PageInfo *pp;
+	pte_t *ppte;
+	if(curenv->env_type != ENV_TYPE_JOCKER)
+		return -1;
+	if ((r = envid2env(from_pid, &from_e, 0)) < 0)
+		return r;
+	if ((r = envid2env(to_pid, &e, 0)) < 0)
+		return r;
+	if (!e->env_ipc_recving) {
+		/* cprintf("[%08x] not recieving!\n", e->env_id); */
+		return -E_IPC_NOT_RECV;
+	}
+    
+
+	if(from_e->env_type == ENV_TYPE_GUEST && e->env_ipc_dstva < (void*) UTOP) {
+		// Guest sending a message. srcva is a kernel page.
+		/* cprintf("Sending message from a guest\n"); */
+		assert(srcva >= (void*)KERNBASE);
+		pp = pa2page(PADDR(srcva));
+
+		r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
+		if (r < 0) {
+			cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", from_e->env_id, srcva, r);
+			return r;
+		}
+
+		e->env_ipc_perm = perm;
+	} else if(e->env_type == ENV_TYPE_GUEST && srcva < (void*) UTOP) {
+		// Sending a message to a VMX guest.
+		/* cprintf("Sending message to guest\n"); */
+		pp = page_lookup(from_e->env_pml4e, srcva, &ppte);
+		if(pp == 0) {
+			cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", from_e->env_id, srcva);
+			return -E_INVAL;
+		}
+
+		if ((perm & PTE_W) && !(*ppte &PTE_W)) {
+			cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", from_e->env_id);
+			return -E_INVAL;
+		}
+
+		// Map the page in guest physical memory.
+		// TODO: Fix permissions.
+#ifndef VMM_GUEST
+		r = ept_page_insert(e->env_pml4e, pp, e->env_ipc_dstva, __EPTE_FULL);
+#endif
+    
+	} else if (srcva < (void*) UTOP && e->env_ipc_dstva < (void*) UTOP) {
+
+		if ((~perm & (PTE_U|PTE_P)) || (perm & ~PTE_SYSCALL)) {
+			cprintf("[%08x] bad perm %x in sys_ipc_try_send\n", from_e->env_id, perm);
+			return -E_INVAL;
+		}
+
+		pp = page_lookup(from_e->env_pml4e, srcva, &ppte);
+		if (pp == 0) {
+			cprintf("[%08x] page_lookup %08x failed in sys_ipc_try_send\n", from_e->env_id, srcva);
+			return -E_INVAL;
+		}
+
+		if ((perm & PTE_W) && !(*ppte & PTE_W)) {
+			cprintf("[%08x] attempt to send read-only page read-write in sys_ipc_try_send\n", from_e->env_id);
+			return -E_INVAL;
+		}
+
+		r = page_insert(e->env_pml4e, pp, e->env_ipc_dstva, perm);
+		if (r < 0) {
+			cprintf("[%08x] page_insert %08x failed in sys_ipc_try_send (%e)\n", from_e->env_id, srcva, r);
+			return r;
+		}
+
+		e->env_ipc_perm = perm;
+	} else {
+		e->env_ipc_perm = 0;
+	}
+
+	e->env_ipc_recving = 0;
+	e->env_ipc_from = from_e->env_id;
+	e->env_ipc_value = value;
+	e->env_tf.tf_regs.reg_rax = 0;
+	e->env_status = ENV_RUNNABLE;
+
+	if(e->env_type == ENV_TYPE_GUEST) {
+		e->env_tf.tf_regs.reg_rsi = value;
+	}
+
+	return 0;
+}
 
 // Block until a value is ready.  Record that you want to receive
 // using the env_ipc_recving and env_ipc_dstva fields of struct Env,
@@ -451,6 +558,17 @@ sys_ipc_recv(void *dstva)
 	sched_yield();
 	return 0;
 
+}
+// LAB 5
+static int
+sys_cont_isqueue_sleep()
+{
+	if(curenv->env_type != ENV_TYPE_JOCKER)
+		return 0;
+	if(!isqueue(curenv)) {
+		sched_yield();
+	}
+	return 1;
 }
 
 
@@ -639,9 +757,15 @@ syscall(uint64_t syscallno, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, 
 		return 0;
 	case SYS_ipc_try_send:
 		return sys_ipc_try_send(a1, a2, (void*) a3, a4);
+	case SYS_cont_dequeue_ipc:
+		return sys_cont_dequeue_ipc((void *)a1, (void *)a2, (void *)a3, (void**) a4, (void *)a5);
 	case SYS_ipc_recv:
 		sys_ipc_recv((void*) a1);
 		return 0;
+	case SYS_cont_ipc_send:
+		return sys_cont_ipc_send(a1, a2, a3, (void*) a4, a5);
+	case SYS_cont_isqueue_sleep:
+		return sys_cont_isqueue_sleep();
 
 	case SYS_time_msec:
 		return sys_time_msec();

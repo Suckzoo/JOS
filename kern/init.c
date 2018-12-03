@@ -136,12 +136,10 @@ i386_init(void)
 	boot_aps();
 #endif
 
-	// LAB 5 TEST PURPOSE
-	test_container();
 
 	// LAB 5
 	// TODO: setup containers
-	
+	init_container();
 	int cid = add_container("/jocker/cont0");
 	int cid2 = add_container("/jocker/cont1");
 	

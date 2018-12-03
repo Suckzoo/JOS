@@ -116,11 +116,28 @@ sys_ipc_try_send(envid_t envid, uint64_t value, void *srcva, int perm)
 }
 
 int
+sys_cont_dequeue_ipc(envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint32_t * value_ptr, void ** srcva_ptr, unsigned * perm_ptr)
+{
+	return syscall(SYS_cont_dequeue_ipc, 0, (uint64_t)from_pid_ptr, (uint64_t)to_pid_ptr, (uint64_t)value_ptr, (uint64_t)srcva_ptr, (uint64_t)perm_ptr);
+}
+
+int
 sys_ipc_recv(void *dstva)
 {
 	return syscall(SYS_ipc_recv, 1, (uint64_t)dstva, 0, 0, 0, 0);
 }
 
+int
+sys_cont_ipc_send(envid_t from_pid, envid_t to_pid, uint32_t value, void * srcva, unsigned perm)
+{
+	return syscall(SYS_cont_ipc_send, 0, from_pid, to_pid, value, (uint64_t)srcva, perm);
+}
+
+int
+sys_cont_isqueue_sleep()
+{
+	return syscall(SYS_cont_isqueue_sleep, 0, 0, 0, 0, 0, 0);
+}
 
 unsigned int
 sys_time_msec(void)

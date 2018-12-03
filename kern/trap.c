@@ -300,6 +300,7 @@ trap_dispatch(struct Trapframe *tf)
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
 		// irq 0 -- clock interrupt
 
+		
 		if (cpunum() == 0)
 			time_tick();
 

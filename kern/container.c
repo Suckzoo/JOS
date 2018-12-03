@@ -1,13 +1,15 @@
 #include <kern/container.h>
 #include <inc/lib.h>
-
-static int ipc_hold_cnt = 0;								// 
+							// 
 struct container_entry conts[CONTAINER_MAX_COUNT];
 static LIST_HEAD(cont_free, container_entry) cont_free;
 static LIST_HEAD(cont_active, container_entry) cont_active;
+int current_dequeue_idx = 0;
 // credit allocation variables
 unsigned int credit_reserves = 0;
-int credit_cont_num = 0;
+int cont_cnt = 0;
+int ipc_total_cnt = 0;
+struct Env * jocker_env = NULL;
 
 // setup memory structure for container allocation
 void init_container() {
@@ -35,18 +37,43 @@ int add_container(char * root_str) {
     c->remaining_credit = 0;
     c->ipc_backptr = NULL;
     c->active = 1;
+    c->ref_cnt = 0;
     // attach to active container list
     LIST_INSERT_HEAD(&cont_active, c, link);
 
     // for credit calculator function
-    credit_cont_num += 1;
-    if(credit_cont_num == 1) {
+    cont_cnt += 1;
+    if(cont_cnt == 1) {
     	// start calc_credit timer
     }
 
     // return container id
     return c->cid;
 }
+
+int incref_container(int cid) {
+	if(cid < 0 || cid > CONTAINER_MAX_COUNT-1) {
+		return -1;
+	}
+	conts[cid].ref_cnt++;
+	if(!conts[cid].active) {
+		conts[cid].ref_cnt--;
+		return -1;
+	}
+	return 0;
+}
+// this will not automatically remove container.
+int decref_container(int cid) {
+	if(cid < 0 || cid > CONTAINER_MAX_COUNT-1) {
+		return -1;
+	}
+	if(!conts[cid].active) {
+		return -1;
+	}
+	conts[cid].ref_cnt--;
+	return 0;
+}
+
 
 // remove container with cid
 void remove_container(int cid) {
@@ -58,21 +85,47 @@ void remove_container(int cid) {
 	// error: container not active
 	if(!c->active)
 		return;
-
+	if(c->ref_cnt != 0)
+		return;
 	LIST_REMOVE(c, link);
 	c->active = 0;
 	LIST_INSERT_HEAD(&cont_free, c, link);
-    credit_cont_num -= 1;
-    if(credit_cont_num < 0) {
+    cont_cnt -= 1;
+    if(cont_cnt < 0) {
     	// stop calc_credit timer
-    	credit_cont_num = 0;
+    	cont_cnt = 0;
     }
 }
 
-/*
+int isqueue(struct Env * e) {
+	// LOCK IPC TOTAL CNT
+	if(ipc_total_cnt < 1) {
+		jocker_env = e;
+		jocker_env->env_status = ENV_NOT_RUNNABLE;
+		// UNLOCK IPC TOTAL CNT
+		return 0;
+	} else {
+		// UNLOCK IPC TOTAL CNT
+		return 1;
+	}
+}
+
+int cont_credit_use_per_ipc(int cid) {
+	struct container_entry *c = &conts[cid];
+	// LOCK cont CREDIT
+	if(c->remaining_credit < 1) {
+		// UNLOCK cont CREDIT
+		return -1;
+	}
+	else {
+		c->remaining_credit--;
+		// UNLOCK cont CREDIT
+		return 0;
+	}
+}
 
 // attach ipc message to message queue inside a container
-int add_ipc(int cid, int from_pid, int to_pid, int value, void * srcva) {
+int enqueue_cont_ipc(int cid, int from_pid, int to_pid, int value, void * srcva, int perm) {
 	struct container_entry *c = &conts[cid];
 	struct ipc_entry *i = LIST_FIRST(&c->ipc_free);
 	if (!c->active) {
@@ -81,70 +134,82 @@ int add_ipc(int cid, int from_pid, int to_pid, int value, void * srcva) {
 	}
 	if(!i) {
 		cprintf("no ipc available\n");
-		return NO_IPC_ERR;
+		return -E_IPC_NOT_RECV;
 	}
 
-	// 1. CHECK if OP is open, check access request
-	//      IF it is not valid, return ERROR
-	// 2. TRY reduce container credit, BY rule of IPC count / data size(in this case, also check OP and srcva to inspect how much it will take)
-	//      IF it is not avalilable, return ERROR
+	/* CASE 1: reduction per ipc */
+	if(cont_credit_use_per_ipc(cid)<0) {
+		cprintf("no credit\n");
+		return -E_IPC_NOT_RECV;
+	}
+	/* CASE 2: reduction per byte if READ/WRITE */
 
 	LIST_REMOVE(i, link);
 	i->from = from_pid;
 	i->to = to_pid;
 	i->value = value;
 	i->srcva = srcva;
-
+	i->perm = perm;
 	if(!c->ipc_backptr) 
 		LIST_INSERT_HEAD(&c->ipc_active, i, link);
 	else
 		LIST_INSERT_AFTER(c->ipc_backptr, i, link);
 	c->ipc_backptr = i;
-	ipc_hold_cnt += 1;
 
-	// TODO: wakeup worker thread For process_ipc
-
+	if(!jocker_env)
+		panic("No Jocker Found!!\n");
+	if(jocker_env->env_status == ENV_NOT_RUNNABLE)
+		jocker_env->env_status = ENV_RUNNABLE;
 	return 0;
 }
 
-// icp message queue processing loop
-void process_ipc() {
-	struct container_entry *c;
+// return EMPTY_CONT_QUEUE for empty situation
+// return value for normal message
+int dequeue_cont_ipc(int cid, envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint32_t * value_ptr, void ** srcva_ptr, unsigned * perm_ptr) {
+	// pick one ipc_entry, copy [from, srcva, perm] to [from_env_store, pg, perm_store]
+	struct container_entry *c = &conts[cid];
 	struct ipc_entry *i;
-	while(1) {
-		LIST_FOREACH(c, &cont_active, link) {
-			i = LIST_FIRST(&c->ipc_active);
-			if(!i)
-				continue;
-			LIST_REMOVE(i, link);
-			if(c->ipc_backptr == i)
-				c->ipc_backptr = NULL;
-			// TODO: send ipc based on i;
-			LIST_INSERT_HEAD(&c->ipc_free, i, link);
-			ipc_hold_cnt--;
-				if(ipc_hold_cnt<1) {
-				//TODO: set sleep
-
-				// return need to be removed when sleep is implemented
-				return;
-			}
+	if(!c->active)
+		return -1;
+	i = LIST_FIRST(&c->ipc_active);
+	if(!i)
+		return -1;
+	else {
+		// LOCK TOTAL IPC
+		ipc_total_cnt++;
+		// UNLOCK TOTAL IPC
+		// LOCK IPC LIST
+		LIST_REMOVE(i, link);
+		if(c->ipc_backptr == i) {
+			c->ipc_backptr == NULL;
 		}
+		*from_pid_ptr = i->from;
+		*to_pid_ptr = i->to;
+		*value_ptr = i->value;
+		*srcva_ptr = i->srcva;
+		*perm_ptr = i->perm;
+		LIST_INSERT_HEAD(&c->ipc_free, i, link);
+		// UNLOCK IPC LIST
+		return 0;
 	}
-}
-*/
 
-void test_container() {
-	init_container();
-	add_container("/test/1");
-	add_container("/test/2");
-	add_container("/test/3");
-	add_container("/test/4");
-	remove_container(2);
-	remove_container(2);
-	remove_container(3);
-	//add_ipc(1, 2, 3, 1, (void *)0);
-	//process_ipc();
-	return;
+}
+
+// return EMPTY_CONT_QUEUE for empty situation
+int dequeue_ipc(envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint32_t * value_ptr, void ** srcva_ptr, unsigned * perm_ptr) {
+	int r;
+	int i = current_dequeue_idx;
+	if(cont_cnt == 0)
+		return -1;
+	do {
+		r = dequeue_cont_ipc(i, from_pid_ptr, to_pid_ptr, value_ptr, srcva_ptr, perm_ptr);
+		if(r > -1) {
+			current_dequeue_idx = (i+1)%CONTAINER_MAX_COUNT;
+			return 0;
+		}
+		i = (i+1)%CONTAINER_MAX_COUNT;
+	} while(i == current_dequeue_idx);
+	return -1;
 }
 
 /* ----------------------- credit allocation ----------------------- */
@@ -167,7 +232,7 @@ void calc_credit() {
 
 
 
-	if(ipc_hold_cnt == 0)
+	if(cont_cnt == 0)
 		goto out;
 
 	// 1. get each credit port and calculate remained_credit
@@ -176,7 +241,7 @@ void calc_credit() {
 	//////////////////////////////////////////////////////////////////////////////////spin_lock_bh(&bca->credit_port_list_lock);
 	list_for_each_entry_safe(temp_p, next_p, &bca->credit_port_list, cp_list) {
 		// a. setting fair distribution of credit_total
-		credit_fair = (credit_total + (ipc_hold_cnt-1) )/ ipc_hold_cnt;
+		credit_fair = (credit_total + (cont_cnt-1) )/ cont_cnt;
 		temp_p->remaining_credit += credit_fair;
 		// b. checking given credit
 

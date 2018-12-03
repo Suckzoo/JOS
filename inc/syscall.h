@@ -20,7 +20,10 @@ enum {
 	SYS_env_set_pgfault_upcall,
 	SYS_yield,
 	SYS_ipc_try_send,
+	SYS_cont_dequeue_ipc,
 	SYS_ipc_recv,
+	SYS_cont_ipc_send,
+	SYS_cont_isqueue_sleep,
 
 	SYS_time_msec,
 

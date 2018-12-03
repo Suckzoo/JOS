@@ -5,6 +5,7 @@
 #define JOS_INC_CON_H
 
 #include <inc/queue.h>
+#include <kern/spinlock.h>
 
 #define CONTAINER_MAX_COUNT	5
 #define MESSAGE_QEUEUE_MAX_COUNT	10	
@@ -19,6 +20,7 @@ struct ipc_entry {
 	int to;
 	int value;
 	void * srcva;
+	int perm;
 
 	LIST_ENTRY(ipc_entry) link;
 };
@@ -26,6 +28,7 @@ struct container_entry {
 	int cid;
 	int active;
 	char root_str[CHROOT_LEN];
+	int ref_cnt;
 	int remaining_credit;
 
 	struct ipc_entry ipc_fronts[MESSAGE_QEUEUE_MAX_COUNT];

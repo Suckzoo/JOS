@@ -26,37 +26,21 @@ typedef int (*fshandler)(envid_t envid, union Fsipc *req);
 void
 serve(void)
 {
-	uint32_t req, whom;
-	int perm, r;
-	void *pg;
+	uint32_t r, value;
+	envid_t from_pid, to_pid;
+	unsigned perm;
+	void *srcva;
+
 	while (1) {
-		sys_page_alloc(thisenv->env_id, (void*)fsreq, PTE_U | PTE_W | PTE_P);
 		perm = 0;
-		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
-
-		if (!(perm & PTE_P)) {
-			cprintf("Invalid request from %08x: no argument page\n",
-				whom);
-			continue; // just leave it hanging...
+		// try to deqeue, if empty, sleep
+		if(sys_cont_isqueue_sleep()) {
+			// dequeue ipc_entry
+			r = sys_cont_dequeue_ipc((int32_t *) &from_pid, &to_pid, &value, &srcva, &perm);
+			// send ipc as if it is sent from from_pid
+			if(r>0)
+				sys_cont_ipc_send(from_pid, to_pid, value, srcva, perm);
 		}
-
-		pg = NULL;
-		if (req == FSREQ_OPEN) {
-			cprintf("open");
-		} else if (req < __BOUND_FSREQ) {
-			cprintf("handler logic");
-			// You don't need to handle the logic!
-			// Just redirect it and hold the redirect table!
-			// r = handlers[req](whom, fsreq);
-		} else {
-			cprintf("Invalid request code %d from %08x\n", req, whom);
-			r = -E_INVAL;
-		}
-		// Depends on your redirect table.
-		// ipc_send(whom, r, pg, perm);
-		if(debug)
-			cprintf("JOCKER: Sent response %d to %x\n", r, whom);
-		sys_page_unmap(thisenv->env_id, fsreq);
 	}
 }
 
