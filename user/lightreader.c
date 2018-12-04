@@ -10,7 +10,7 @@ umain(int argc, char **argv)
 
     int trial, num_file, repeat = 100;
     if (argc < 2) {
-        cprintf("Usage: heavyreader [runner_name]\n");
+        cprintf("Usage: lightreader [runner_name]\n");
         exit();
     }
     const char *runner = argv[1];
@@ -22,7 +22,7 @@ umain(int argc, char **argv)
                 panic("open /shark: %e", rfd);
             if ((wfd = open("/shark.out", O_RDWR | O_CREAT)) < 0)
                 panic("open /shark.out: %e", wfd);
-            while ((n = read(rfd, buf, sizeof buf-1)) > 0) {
+            while ((n = read(rfd, buf, 50)) > 0) {
                 if ((r = write(wfd, buf, n)) != n)
                     panic("write /motd: %e", r);
                 total_bytes += n;
@@ -31,8 +31,7 @@ umain(int argc, char **argv)
             close(wfd);
         }
         unsigned int end = sys_time_msec();
-        unsigned int ops = 100000 / (end - start);
-        cprintf("[heavy-%s (%d/10)] %d msec elapsed for %d I/O ops, read %u bytes (%d ops/sec).\n", runner, trial, end - start, repeat, total_bytes, ops);
+        cprintf("[light-%s (%d/10)] %d msec elapsed for %d I/O ops, read %u bytes.\n", runner, trial, end - start, repeat, total_bytes);
     }
 }
 

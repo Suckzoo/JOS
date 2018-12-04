@@ -180,6 +180,7 @@ int     nsipc_socket(int domain, int type, int protocol);
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
 envid_t spawnc(const char *program, const char *root, const char **argv);
+envid_t spawncid(const char *program, cid_t cid, const char **argv);
 
 
 

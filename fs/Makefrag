@@ -39,6 +39,7 @@ USERAPPS :=		$(USERAPPS) \
 			$(OBJDIR)/user/jocker \
 			$(OBJDIR)/user/hello \
 			$(OBJDIR)/user/heavyreader \
+			$(OBJDIR)/user/lightreader \
 			$(OBJDIR)/user/fairbench
 			
 ifndef GUEST_KERN

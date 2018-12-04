@@ -195,7 +195,7 @@ spawnl(const char *prog, const char *arg0, ...)
 	return _spawn(prog, argv, -1);
 }
 
-// Spawn, but with a container which is chrooted on root.
+// Spawn, but with a new container which is chrooted on root.
 int
 spawnc(const char *prog, const char *root, const char **argv)
 {
@@ -211,6 +211,16 @@ spawnc(const char *prog, const char *root, const char **argv)
 	return r;	
 }
 
+// Spawn, but with an existing container which is chrooted on root.
+int
+spawncid(const char *prog, cid_t cid, const char **argv)
+{
+	int r;
+	if ((r = _spawn(prog, argv, cid)) < 0) {
+		//sys_destroy_container
+	}
+	return r;	
+}
 
 // Set up the initial stack page for the new child process with envid 'child'
 // using the arguments array pointed to by 'argv',
