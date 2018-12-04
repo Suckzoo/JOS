@@ -26,6 +26,7 @@ void init_container() {
 		for(j=0; j<MESSAGE_QEUEUE_MAX_COUNT; j++) {
 			LIST_INSERT_HEAD(&(conts[i].ipc_free), &(conts[i].ipcs[j]), link);
 		}
+		spin_initlock(&conts[i].ipc_free_lk);
 		spin_initlock(&conts[i].ipc_active_lk);
 	}
 	spin_initlock(&cont_free_lk);
@@ -160,33 +161,39 @@ int enqueue_cont_ipc(int cid, int from_pid, int to_pid, int value, void * srcva,
 	}
 
 	// LOCK ipc_free
+	spin_lock(&c->ipc_free_lk);
 	i = LIST_FIRST(&c->ipc_free);
 	if(!i) {
+		// UNLOCK ipc_free
+		spin_unlock(&c->ipc_free_lk);
 		//cprintf("no ipc available\n");
 		return -E_IPC_NOT_RECV;
 	}
 
 	/* CASE 1: reduction per ipc */
 	if(cont_credit_use_per_ipc(cid)<0) {
+		// UNLOCK ipc_free
+		spin_unlock(&c->ipc_free_lk);
 		//cprintf("no credit\n");
 		return -E_IPC_NOT_RECV;
 	}
 	/* CASE 2: reduction per byte if READ/WRITE */
 	LIST_REMOVE(i, link);
 	// UNLOCK ipc_free
-
+	spin_unlock(&c->ipc_free_lk);
+	
 	spin_lock(&c->ipc_active_lk);
 	i->from = from_pid;
 	i->to = to_pid;
 	i->value = value;
 	i->srcva = srcva;
 	i->perm = perm;
-	if(!c->ipc_backptr) {
+    if(!c->ipc_backptr) {
 		LIST_INSERT_HEAD(&c->ipc_active, i, link);
 	}
 	else {
-		//LIST_INSERT_AFTER(c->ipc_backptr, i, link);
-		LIST_INSERT_HEAD(&c->ipc_active, i, link);
+		LIST_INSERT_AFTER(c->ipc_backptr, i, link);
+		//LIST_INSERT_HEAD(&c->ipc_active, i, link);
 	}
 	c->ipc_backptr = i;
 	spin_unlock(&c->ipc_active_lk);
@@ -208,6 +215,7 @@ int dequeue_cont_ipc(int cid, envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint
 	struct ipc_entry *i;
 	if(!c->active)
 		return -1;
+	// LOCK IPC LIST
 	spin_lock(&c->ipc_active_lk);
 	i = LIST_FIRST(&c->ipc_active);
 	if(!i) {
@@ -218,17 +226,20 @@ int dequeue_cont_ipc(int cid, envid_t * from_pid_ptr, envid_t * to_pid_ptr, uint
 		// LOCK TOTAL IPC
 		ipc_total_cnt--;
 		// UNLOCK TOTAL IPC
-		// LOCK IPC LIST
 		LIST_REMOVE(i, link);
 		if(c->ipc_backptr == i) {
-			c->ipc_backptr == NULL;
+			c->ipc_backptr = NULL;
 		}
-		*from_pid_ptr = i->from;
+    	*from_pid_ptr = i->from;
 		*to_pid_ptr = i->to;
 		*value_ptr = i->value;
 		*srcva_ptr = i->srcva;
 		*perm_ptr = i->perm;
+		// LOCK ipc_free
+		spin_lock(&c->ipc_free_lk);
 		LIST_INSERT_HEAD(&c->ipc_free, i, link);
+		// UNLOCK ipc_free
+		spin_unlock(&c->ipc_free_lk);
 		// UNLOCK IPC LIST
 		spin_unlock(&c->ipc_active_lk);
 		return 0;

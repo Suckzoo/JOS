@@ -41,6 +41,7 @@ struct container_entry {
     LIST_ENTRY(container_entry) link;
 
     // locks
+    struct spinlock ipc_free_lk;
     struct spinlock ipc_active_lk;
 
 };
