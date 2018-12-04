@@ -711,14 +711,13 @@ static int sys_getroot(envid_t envid, void *dst) {
 	struct Env * e;
 	extern struct container_entry conts[CONTAINER_MAX_COUNT];
 	envid2env(envid, &e, 0);
-	if(!e || curenv->env_type == ENV_TYPE_GUEST) {
-		return -1;
-	}
-	else if(e->env_cid<0||e->env_cid>CONTAINER_MAX_COUNT-1) {
-		return 0;
+	if(!e || curenv->env_type != ENV_TYPE_FS) {
+		return -1; // YOU ARE NOT ALLOWED
+	} else if(e->env_cid>=CONTAINER_MAX_COUNT) {
+		return -2; // THE ENV IS NOT A CONTAINER
 	} else {
 		memcpy(dst, conts[e->env_cid].root_str, strnlen(conts[e->env_cid].root_str, CHROOT_LEN));
-		return 1;
+		return 0;
 	}
 }
 
