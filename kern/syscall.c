@@ -733,7 +733,7 @@ static int sys_map_container_to_env(envid_t envid, cid_t cid) {
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
 	env_map_container(e, cid);
-	if (!e->env_container_ptr) {
+	if (e->env_cid < 0) {
 		return -1;
 	}
 	return 0;
