@@ -22,10 +22,6 @@ umain(int argc, char **argv)
 	int f, i;
 
 	binaryname = "cat";
-	cprintf("argc: %d\n",argc);
-	for(i=0;i<argc;i++){
-		cprintf("%s\n",argv[i]);
-	}
 	if (argc == 1)
 		cat(0, "<stdin>");
 	else

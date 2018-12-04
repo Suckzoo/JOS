@@ -12,7 +12,7 @@
 #define CONTAINER_MAX_COUNT	5
 #define MESSAGE_QEUEUE_MAX_COUNT	10	
 #define CHROOT_LEN	100
-#define MAX_CREDIT	1000
+#define MAX_CREDIT	1000000
 
 #define NO_CONT_ERR (-1)
 #define NO_IPC_ERR (-2)

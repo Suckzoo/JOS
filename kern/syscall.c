@@ -348,7 +348,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	pte_t *ppte;
 	if ((r = envid2env(envid, &e, 0)) < 0)
 		return r;
-	if(curenv && curenv->env_cid>-1 && curenv->env_cid<CONTAINER_MAX_COUNT) {
+	if(curenv && curenv->env_cid != (cid_t)-1 && curenv->env_cid < CONTAINER_MAX_COUNT) {
 		return enqueue_cont_ipc(curenv->env_cid, curenv->env_id, envid, value, srcva, perm);
 	}
 
