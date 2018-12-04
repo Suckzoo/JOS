@@ -10,7 +10,7 @@
 #include <inc/types.h>
 
 #define CONTAINER_MAX_COUNT	5
-#define MESSAGE_QEUEUE_MAX_COUNT	10	
+#define MESSAGE_QUEUE_MAX_COUNT	10000	
 #define CHROOT_LEN	100
 #define MAX_CREDIT	1000000
 
@@ -36,7 +36,7 @@ struct container_entry {
 	int ref_cnt;
 	int remaining_credit;
 
-	struct ipc_entry ipcs[MESSAGE_QEUEUE_MAX_COUNT];
+	struct ipc_entry ipcs[MESSAGE_QUEUE_MAX_COUNT];
 	LIST_HEAD(ipc_free, ipc_entry) ipc_free;
 	LIST_HEAD(ipc_active, ipc_entry) ipc_active;
 	struct ipc_entry *ipc_backptr;

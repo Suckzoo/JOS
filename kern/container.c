@@ -23,7 +23,7 @@ void init_container() {
 		conts[i].cid = i;
 		conts[i].active = 0;
 		LIST_INSERT_HEAD(&cont_free, &conts[i], link);
-		for(j=0; j<MESSAGE_QEUEUE_MAX_COUNT; j++) {
+		for(j=0; j<MESSAGE_QUEUE_MAX_COUNT; j++) {
 			LIST_INSERT_HEAD(&(conts[i].ipc_free), &(conts[i].ipcs[j]), link);
 		}
 		spin_initlock(&conts[i].ipc_free_lk);
