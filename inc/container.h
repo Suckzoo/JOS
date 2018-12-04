@@ -5,6 +5,7 @@
 #define JOS_INC_CON_H
 
 #include <inc/queue.h>
+#include <inc/fs.h>
 #include <kern/spinlock.h>
 
 #define CONTAINER_MAX_COUNT	5

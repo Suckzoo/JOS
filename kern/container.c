@@ -1,6 +1,6 @@
 #include <kern/container.h>
 #include <inc/lib.h>
-							// 
+
 struct container_entry conts[CONTAINER_MAX_COUNT];
 static LIST_HEAD(cont_free, container_entry) cont_free;
 static LIST_HEAD(cont_active, container_entry) cont_active;
@@ -137,15 +137,15 @@ int isqueue(struct Env * e) {
 	}
 }
 
-int cont_credit_use_per_ipc(int cid) {
+int cont_credit_use(int cid, int token_used) {
 	struct container_entry *c = &conts[cid];
 	// LOCK cont CREDIT
-	if(c->remaining_credit < 1) {
+	if(c->remaining_credit - token_used < 0) {
 		// UNLOCK cont CREDIT
 		return -1;
 	}
 	else {
-		c->remaining_credit--;
+		c->remaining_credit -= token_used;
 		// UNLOCK cont CREDIT
 		return 0;
 	}
@@ -155,6 +155,11 @@ int cont_credit_use_per_ipc(int cid) {
 int enqueue_cont_ipc(int cid, int from_pid, int to_pid, int value, void * srcva, int perm) {
 	struct container_entry *c = &conts[cid];
 	struct ipc_entry *i;
+#ifdef RW_BYTE_BASED_CREDIT
+	int req_n=0;
+	struct Fsreq_read* req_rd;
+	struct Fsreq_write* req_wrt;
+#endif
 	if (!c->active) {
 		cprintf("no active container\n");
 		return NO_ACTIVE_CONTAINER_ERR;
@@ -170,14 +175,39 @@ int enqueue_cont_ipc(int cid, int from_pid, int to_pid, int value, void * srcva,
 		return -E_IPC_NOT_RECV;
 	}
 
+#ifndef RW_BYTE_BASED_CREDIT
 	/* CASE 1: reduction per ipc */
-	if(cont_credit_use_per_ipc(cid)<0) {
+	if(cont_credit_use(cid, 1)<0) {
 		// UNLOCK ipc_free
 		spin_unlock(&c->ipc_free_lk);
 		//cprintf("no credit\n");
 		return -E_IPC_NOT_RECV;
 	}
+#else
 	/* CASE 2: reduction per byte if READ/WRITE */
+	if(value == FSREQ_READ || value == FSREQ_WRITE) {
+		if(value == FSREQ_READ) {
+			req_rd = (struct Fsreq_read*) srcva;
+			req_n = req_rd->req_n;
+		} else if(value == FSREQ_WRITE) {
+			req_wrt = (struct Fsreq_write*) srcva;
+			req_n = req_wrt->req_n;
+		}
+		if(req_n < 1) {
+			// UNLOCK ipc_free
+			spin_unlock(&c->ipc_free_lk);
+			return -E_IPC_NOT_RECV;
+		}
+		if(cont_credit_use(cid, req_n)<0) {
+			// UNLOCK ipc_free
+			spin_unlock(&c->ipc_free_lk);
+			//cprintf("no credit\n");
+			return -E_IPC_NOT_RECV;
+		}	
+	}
+#endif
+	
+	
 	LIST_REMOVE(i, link);
 	// UNLOCK ipc_free
 	spin_unlock(&c->ipc_free_lk);
